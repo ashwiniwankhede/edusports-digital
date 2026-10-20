@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Planner Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:12px 0}
+    .tile{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+    .tile .v{font-size:26px;font-weight:700;color:var(--brand)}
+    .tile .l{font-size:12px;color:var(--muted)}
+    .bar{height:8px;background:var(--brand-2);border-radius:4px;min-width:2px}
+    table.t{width:100%;border-collapse:collapse;font-size:13px}
+    table.t th,table.t td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+    table.t th{color:var(--muted);font-weight:600}
+    .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+    pre{white-space:pre-wrap;word-break:break-word;margin:0;font-size:12px}
+    details summary{cursor:pointer;color:var(--brand)}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+    .row label{flex:1;min-width:200px}
+    #log{font-size:12px;color:var(--muted);white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><div><div class="brand-name">Planner Admin</div><div class="brand-sub">Analytics &amp; knowledge base</div></div></div>
+    <nav class="tabs"><button class="tab active" data-tab="analytics">Analytics</button><button class="tab" data-tab="kb">Knowledge base (RAG)</button><a class="tab" href="./">← Planner</a></nav>
+  </header>
+
+  <main class="layout">
+    <section class="panel" id="login">
+      <form class="form row" id="loginForm">
+        <label>Admin token<input type="password" id="token" required placeholder="ADMIN_TOKEN set on the worker"></label>
+        <button class="btn primary">Unlock</button>
+      </form>
+      <p class="hint">The token is kept only for this browser tab.</p>
+    </section>
+
+    <section class="panel" id="tab-analytics" hidden>
+      <div class="row form">
+        <label>Period<select id="days"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select></label>
+        <button class="btn" id="refresh">Refresh</button>
+        <button class="btn" data-export="">Export all (CSV)</button>
+        <button class="btn" data-export="lesson_generated">Export prompts (CSV)</button>
+        <button class="btn" data-export="unit_created">Export unit inputs (CSV)</button>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <h2>Daily activity</h2><div class="scroll" id="daily"></div>
+      <h2>Lesson prompts &amp; inputs</h2><div class="scroll" id="lessons"></div>
+      <h2>Unit plan inputs</h2><div class="scroll" id="units"></div>
+      <h2>Blocked by guardrails</h2><div class="scroll" id="blocked"></div>
+    </section>
+
+    <section class="panel" id="tab-kb" hidden>
+      <h2>Add documents</h2>
+      <p class="hint">PDF, TXT or Markdown. Text is extracted in your browser, split into chunks and embedded. Re-uploading a file with the same name replaces it.</p>
+      <div class="form">
+        <label>Files<input type="file" id="files" multiple accept=".pdf,.txt,.md,.markdown"></label>
+        <details><summary>…or paste text</summary>
+          <label>Source name<input id="pasteName" placeholder="e.g. Sportz Village gymnastics guide"></label>
+          <label>Text<textarea id="pasteText" rows="6"></textarea></label>
+        </details>
+        <div class="actions"><button class="btn primary" id="ingestBtn">Ingest</button></div>
+        <div id="log"></div>
+      </div>
+      <h2>Indexed sources</h2><div class="scroll" id="sources"></div>
+    </section>
+  </main>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+  (() => {
+    const $ = (s) => document.querySelector(s);
+    const base = (APP_CONFIG.API_BASE || "").replace(/\/$/, "");
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    let token = ""; try { token = sessionStorage.getItem("pspe_admin") || ""; } catch (_) {}
+    if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    function toast(m, err) { const t = $("#toast"); t.textContent = m; t.className = "toast" + (err ? " error" : ""); t.hidden = false; setTimeout(() => (t.hidden = true), 4000); }
+    async function api(path, opts = {}) {
+      if (!base) throw new Error("Set API_BASE in js/config.js first.");
+      const res = await fetch(base + path, { ...opts, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers || {}) } });
+      if (res.status === 401) { lock(); throw new Error("Wrong admin token."); }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || `Error ${res.status}`);
+      return res;
+    }
+
+    // ───── auth & tabs ─────
+    function unlock() { $("#login").hidden = true; showTab("analytics"); }
+    function lock() { token = ""; try { sessionStorage.removeItem("pspe_admin"); } catch (_) {} $("#login").hidden = false; ["analytics", "kb"].forEach((t) => ($(`#tab-${t}`).hidden = true)); }
+    $("#loginForm").addEventListener("submit", (e) => { e.preventDefault(); token = $("#token").value.trim(); try { sessionStorage.setItem("pspe_admin", token); } catch (_) {} unlock(); });
+    document.querySelectorAll(".tab[data-tab]").forEach((b) => b.addEventListener("click", () => token && showTab(b.dataset.tab)));
+    function showTab(t) {
+      document.querySelectorAll(".tab[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === t));
+      $("#tab-analytics").hidden = t !== "analytics"; $("#tab-kb").hidden = t !== "kb";
+      (t === "analytics" ? loadStats : loadSources)().catch((e) => toast(e.message, true));
+    }
+
+    // ───── analytics ─────
+    const when = (ts) => new Date(ts).toLocaleString();
+    const short = (id) => (id || "").slice(0, 8);
+    async function loadStats() {
+      const s = await (await api(`/admin/stats?days=${$("#days").value}`)).json();
+      const c = s.counts;
+      const tile = (v, l) => `<div class="tile"><div class="v">${v ?? 0}</div><div class="l">${l}</div></div>`;
+      $("#tiles").innerHTML = [
+        tile(s.unique_users_period, `Unique users (${s.days}d)`), tile(s.unique_users_all_time, "Unique users (all time)"),
+        tile(c.lesson_generated, "Lesson plans generated"), tile(c.unit_created, "Unit plans created"),
+        tile(c.sequence_generated, "AI unit sequences"), tile(c.visit, "Visits"), tile(c.blocked, "Blocked requests"), tile(c.error, "Errors"),
+      ].join("");
+      const max = Math.max(1, ...s.daily.map((d) => d.lessons + d.units));
+      $("#daily").innerHTML = `<table class="t"><tr><th>Day</th><th>Users</th><th>Lessons</th><th>Units</th><th>Blocked</th><th style="width:35%"></th></tr>${
+        s.daily.slice().reverse().map((d) => `<tr><td>${d.day}</td><td>${d.users}</td><td>${d.lessons}</td><td>${d.units}</td><td>${d.blocked}</td><td><div class="bar" style="width:${((d.lessons + d.units) / max) * 100}%"></div></td></tr>`).join("")}</table>`;
+      $("#lessons").innerHTML = `<table class="t"><tr><th>When</th><th>User</th><th>Mode</th><th>Prompt / focus</th><th>Output</th><th>RAG</th></tr>${
+        s.recent_lessons.map((r) => { const p = r.payload || {}; const i = p.input || {};
+          return `<tr><td>${when(r.ts)}</td><td>${short(r.anon_id)}</td><td>${esc(p.mode)}</td><td>${esc(i.prompt || `${i.unit?.title || ""} · W${i.week} C${i.cls}: ${i.focus || ""}`)}${i.extra ? `<br><small>+ ${esc(i.extra)}</small>` : ""}</td><td>${esc(p.title)}</td><td>${(p.rag_sources || []).length}</td></tr>`; }).join("")}</table>`;
+      $("#units").innerHTML = `<table class="t"><tr><th>When</th><th>User</th><th>Via</th><th>Unit</th><th>Inputs</th></tr>${
+        s.recent_units.map((r) => { const p = r.payload || {}; const i = p.inputs || {};
+          return `<tr><td>${when(r.ts)}</td><td>${short(r.anon_id)}</td><td>${esc(p.via)}</td><td>${esc(i.title)}<br><small>${esc(i.grade)} · ${i.weeks}w×${i.classesPerWeek} · ${i.minutesPerClass}min</small></td><td><details><summary>view</summary><pre>${esc(JSON.stringify(i, null, 2))}</pre></details></td></tr>`; }).join("")}</table>`;
+      $("#blocked").innerHTML = s.recent_blocked.length ? `<table class="t"><tr><th>When</th><th>User</th><th>Where</th><th>Rule</th><th>Input</th></tr>${
+        s.recent_blocked.map((r) => { const p = r.payload || {};
+          return `<tr><td>${when(r.ts)}</td><td>${short(r.anon_id)}</td><td>${esc(p.where)} ${p.layer ? `(${esc(p.layer)})` : ""}</td><td>${esc(p.rule)}</td><td><details><summary>view</summary><pre>${esc(JSON.stringify(p.input || p.inputs || {}, null, 2))}</pre></details></td></tr>`; }).join("")}</table>` : `<p class="empty" style="padding:10px">Nothing blocked.</p>`;
+    }
+    $("#refresh").addEventListener("click", () => loadStats().catch((e) => toast(e.message, true)));
+    $("#days").addEventListener("change", () => loadStats().catch((e) => toast(e.message, true)));
+    document.querySelectorAll("[data-export]").forEach((b) => b.addEventListener("click", async () => {
+      try {
+        const blob = await (await api(`/admin/export?type=${b.dataset.export}`)).blob();
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${b.dataset.export || "events"}.csv`; a.click();
+      } catch (e) { toast(e.message, true); }
+    }));
+
+    // ───── knowledge base ─────
+    async function loadSources() {
+      const { sources } = await (await api("/admin/sources")).json();
+      $("#sources").innerHTML = sources.length ? `<table class="t"><tr><th>Source</th><th>Chunks</th><th>Updated</th><th></th></tr>${
+        sources.map((s) => `<tr><td>${esc(s.source)}</td><td>${s.chunks}</td><td>${when(s.updated)}</td><td><button class="btn sm ghost" data-del="${esc(s.source)}">Delete</button></td></tr>`).join("")}</table>`
+        : `<p class="empty" style="padding:10px">No documents yet.</p>`;
+    }
+    $("#sources").addEventListener("click", async (e) => {
+      const src = e.target.dataset?.del; if (!src || !confirm(`Delete "${src}" from the knowledge base?`)) return;
+      try { await api(`/admin/sources?source=${encodeURIComponent(src)}`, { method: "DELETE" }); loadSources(); } catch (err) { toast(err.message, true); }
+    });
+
+    async function extract(file) {
+      if (/\.pdf$/i.test(file.name)) {
+        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        let out = "";
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const content = await (await pdf.getPage(p)).getTextContent();
+          out += content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join("") + "\n\n";
+        }
+        return out;
+      }
+      return file.text();
+    }
+    // Same chunker as the worker (src/rag.js) so large files are sent in pieces.
+    function chunkText(text, size = 1200, overlap = 200) {
+      const clean = String(text).replace(/\r/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+      if (!clean) return [];
+      const tail = (s, n) => (s.length <= n ? s : s.slice(s.length - n).replace(/^\S*\s/, ""));
+      const chunks = []; let cur = "";
+      for (const p of clean.split(/\n\n/)) {
+        if ((cur + "\n\n" + p).length <= size) { cur = cur ? cur + "\n\n" + p : p; continue; }
+        if (cur) chunks.push(cur);
+        if (p.length <= size) { cur = (chunks.length ? tail(chunks[chunks.length - 1], overlap) + "\n\n" : "") + p; continue; }
+        for (let i = 0; i < p.length; i += size - overlap) chunks.push(p.slice(i, i + size));
+        cur = "";
+      }
+      if (cur) chunks.push(cur);
+      return chunks;
+    }
+    async function ingest(source, text) {
+      const chunks = chunkText(text).map((t, index) => ({ index, text: t }));
+      if (!chunks.length) throw new Error(`No text found in ${source} (scanned PDFs need OCR first).`);
+      for (let i = 0; i < chunks.length; i += 40) {
+        await api("/admin/ingest", { method: "POST", body: JSON.stringify({ source, chunks: chunks.slice(i, i + 40), replace: i === 0 }) });
+        log(`${source}: ${Math.min(i + 40, chunks.length)}/${chunks.length} chunks`);
+      }
+    }
+    const log = (m) => ($("#log").textContent += m + "\n");
+    $("#ingestBtn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget; btn.disabled = true; $("#log").textContent = "";
+      try {
+        for (const f of $("#files").files) { log(`Reading ${f.name}…`); await ingest(f.name, await extract(f)); }
+        const name = $("#pasteName").value.trim(), text = $("#pasteText").value.trim();
+        if (text) await ingest(name || `Pasted text ${new Date().toISOString().slice(0, 16)}`, text);
+        log("Done."); $("#files").value = ""; $("#pasteText").value = ""; loadSources();
+      } catch (err) { log("Error: " + err.message); toast(err.message, true); }
+      finally { btn.disabled = false; }
+    });
+
+    if (token) unlock();
+  })();
+  </script>
+</body>
+</html>

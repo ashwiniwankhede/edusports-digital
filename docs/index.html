@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PSPE Planner</title>
+  <meta name="description" content="IB PYP PSPE unit plan and AI lesson plan builder">
+  <link rel="icon" href="assets/watermark.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/print.css" media="print">
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand">
+      <img src="assets/watermark.svg" alt="" class="brand-logo" id="brandLogo">
+      <div>
+        <div class="brand-name" id="brandProduct">PSPE Planner</div>
+        <div class="brand-sub" id="brandCompany"></div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="unit" role="tab">Unit Plan Builder</button>
+      <button class="tab" data-tab="lesson" role="tab">AI Lesson Plan Builder</button>
+      <button class="tab" data-tab="library" role="tab">My Plans</button>
+    </nav>
+  </header>
+
+  <div class="banner no-print" id="demoBanner" hidden>
+    Demo mode — lesson plans are generated from a local template. Set <code>API_BASE</code> in <code>js/config.js</code> to switch on AI.
+  </div>
+
+  <main class="layout no-print">
+    <!-- ───────────── UNIT PLAN BUILDER ───────────── -->
+    <section class="panel" id="tab-unit">
+      <form id="unitForm" class="form" autocomplete="off">
+        <h2>Unit details</h2>
+        <div class="grid g2">
+          <label>Unit title<input name="title" required placeholder="e.g. Moving with control"></label>
+          <label>Movement context<select name="context" id="contextSel"></select></label>
+          <label>Grade<select name="grade" id="gradeSel"></select></label>
+          <label>PSPE phase<select name="phase" id="phaseSel"></select></label>
+        </div>
+
+        <fieldset><legend>PSPE strand(s)</legend><div class="chips" id="strandChips"></div></fieldset>
+        <fieldset><legend>Key concept(s)</legend><div class="chips" id="kcChips"></div></fieldset>
+
+        <label>Central idea / statement of inquiry<textarea name="centralIdea" rows="2" placeholder="e.g. Our bodies can move in different ways to achieve a goal"></textarea></label>
+        <label>Lines of inquiry <span class="hint">one per line</span><textarea name="linesOfInquiry" rows="3"></textarea></label>
+
+        <h2>Schedule &amp; class profile</h2>
+        <div class="grid g3">
+          <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
+          <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
+          <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
+          <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
+          <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
+          <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
+        </div>
+        <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
+
+        <h2>Approaches to Learning (ATL)</h2>
+        <div id="atlBox" class="atl"></div>
+
+        <h2>Learner Profile attributes</h2>
+        <div class="chips" id="lpChips"></div>
+
+        <h2>Learning outcomes</h2>
+        <label><span class="hint">One per line. Paste from your PSPE scope &amp; sequence.</span>
+          <textarea name="outcomes" rows="5" required placeholder="e.g. Demonstrates control when balancing on different body parts"></textarea></label>
+
+        <h2>Assessment</h2>
+        <div class="grid g2">
+          <label>Formative<textarea name="formative" rows="2" placeholder="e.g. Peer feedback checklists, teacher observation"></textarea></label>
+          <label>Summative<textarea name="summative" rows="2" placeholder="e.g. Perform a 3-balance sequence with smooth transitions"></textarea></label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Build unit plan</button>
+          <button type="button" class="btn" id="aiSequenceBtn">Build + draft class sequence with AI</button>
+          <button type="reset" class="btn ghost">Clear</button>
+        </div>
+      </form>
+
+      <div id="unitOut" class="output" hidden></div>
+    </section>
+
+    <!-- ───────────── LESSON PLAN BUILDER ───────────── -->
+    <section class="panel" id="tab-lesson" hidden>
+      <div class="seg" role="radiogroup">
+        <button class="seg-btn active" data-mode="unit">From a unit (class by class)</button>
+        <button class="seg-btn" data-mode="prompt">Direct prompt</button>
+      </div>
+
+      <form id="lessonForm" class="form" autocomplete="off">
+        <div id="modeUnit">
+          <div class="grid g3">
+            <label>Unit<select id="lessonUnitSel"></select></label>
+            <label>Week<select id="lessonWeekSel"></select></label>
+            <label>Class<select id="lessonClassSel"></select></label>
+          </div>
+          <label>Class focus <span class="hint">from the unit sequence — edit freely</span><input id="lessonFocus"></label>
+        </div>
+
+        <div id="modePrompt" hidden>
+          <label>Describe the lesson you want
+            <textarea id="lessonPrompt" rows="4" placeholder="e.g. A 40-minute Grade 3 lesson on dribbling with hands in an invasion game, focused on Collaboration and the Risk-taker attribute"></textarea></label>
+          <div class="grid g3">
+            <label>Grade<select id="promptGrade"></select></label>
+            <label>Minutes<input type="number" id="promptMinutes" value="40" min="15" max="120" step="5"></label>
+            <label>Class size (boys / girls)<input id="promptMix" placeholder="12 / 12"></label>
+          </div>
+        </div>
+
+        <label>Extra instructions <span class="hint">optional</span><input id="lessonExtra" placeholder="e.g. Hot weather — keep high-intensity bursts short"></label>
+        <label class="check"><input type="checkbox" id="useRag" checked> Ground in knowledge base documents (RAG)</label>
+        <p class="hint">Please don't include student names or personal details. Requests are checked against our child-safeguarding policy.</p>
+
+        <div class="actions">
+          <button type="submit" class="btn primary" id="genLessonBtn">Generate lesson plan</button>
+        </div>
+      </form>
+
+      <div id="lessonOut" class="output" hidden></div>
+    </section>
+
+    <!-- ───────────── LIBRARY ───────────── -->
+    <section class="panel" id="tab-library" hidden>
+      <div class="lib-head">
+        <h2>My Plans <span class="hint">saved in this browser</span></h2>
+        <div class="actions">
+          <button class="btn" id="exportBtn">Export JSON</button>
+          <label class="btn">Import JSON<input type="file" id="importInput" accept="application/json" hidden></label>
+        </div>
+      </div>
+      <h3>Unit plans</h3>
+      <div id="libUnits" class="lib-list"></div>
+      <h3>Lesson plans</h3>
+      <div id="libLessons" class="lib-list"></div>
+    </section>
+  </main>
+
+  <!-- Print container: thead/tfoot repeat on every printed page -->
+  <div id="printRoot" class="print-only">
+    <img class="wm" id="printWm" alt="">
+    <table class="print-frame">
+      <thead><tr><td><div class="print-head"><img id="printLogo" alt=""><span id="printCompany"></span><span id="printDate"></span></div></td></tr></thead>
+      <tbody><tr><td id="printBody"></td></tr></tbody>
+      <tfoot><tr><td><div class="print-foot" id="printFoot"></div></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div id="toast" class="toast no-print" role="status" hidden></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/ib-data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

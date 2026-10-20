@@ -1,0 +1,33 @@
+/* Print: only #printRoot is shown. thead/tfoot repeat on every page; the
+   fixed watermark repeats on every page in Chrome, Edge, Safari and Firefox. */
+@page { size: A4; margin: 12mm 12mm 12mm 12mm; }
+
+body { background: #fff !important; font-size: 11pt; }
+.no-print, header, main, .toast { display: none !important; }
+.print-only { display: block !important; }
+
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.wm {
+  position: fixed; top: 50%; left: 50%;
+  width: 60%; transform: translate(-50%, -50%) rotate(-30deg);
+  z-index: 0; pointer-events: none;
+}
+.print-frame { width: 100%; border-collapse: collapse; position: relative; z-index: 1; }
+.print-frame > thead td, .print-frame > tfoot td, .print-frame > tbody > tr > td { padding: 0; border: 0; }
+
+.print-head {
+  display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  border-bottom: 2px solid var(--brand); padding-bottom: 4px; margin-bottom: 8px;
+  font-size: 9pt; color: var(--brand); font-weight: 600;
+}
+.print-head img { height: 22px; }
+.print-head span:first-of-type { flex: 1; }
+.print-foot { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; font-size: 8pt; color: var(--muted); text-align: center; }
+
+.doc h1 { font-size: 17pt; }
+.doc h4 { break-after: avoid; }
+.doc table { font-size: 9.5pt; }
+.doc tr, .doc .safety, .doc .kv { break-inside: avoid; }
+.doc .no-print-inline, .out-bar, .btn { display: none !important; }
+.doc table { display: table !important; }

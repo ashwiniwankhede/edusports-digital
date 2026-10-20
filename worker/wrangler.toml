@@ -1,0 +1,41 @@
+name = "pspe-planner-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Comma-separated list of sites allowed to call the API (your GitHub Pages domain).
+ALLOWED_ORIGINS = "https://planner.yourdomain.com,http://localhost:8080"
+
+# LLM provider: "anthropic" or "openai". Put the key in a secret (see README).
+LLM_PROVIDER = "anthropic"
+MODEL = "claude-sonnet-5-5"
+# Cheap model used for the optional second-pass safety classifier.
+SAFETY_MODEL = "claude-haiku-5-5"
+
+# Guardrails
+GUARDRAIL_LLM_CHECK = "true"    # second-pass AI safety classification on every request
+# Abuse/cost protection for a no-login site
+RATE_LIMIT_PER_HOUR = "30"      # AI generations per visitor IP per hour
+DAILY_GENERATION_CAP = "1000"   # hard stop across all visitors per UTC day
+
+# RAG
+RAG_TOP_K = "5"
+RAG_MIN_SCORE = "0.55"
+EMBED_MODEL = "@cf/baai/bge-base-en-v1.5"
+
+# Secrets (set with `npx wrangler secret put NAME`, never commit):
+#   ANTHROPIC_API_KEY  (or OPENAI_API_KEY)
+#   ADMIN_TOKEN        long random string for the analytics/knowledge-base admin page
+#   IP_SALT            random string used to hash visitor IPs
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pspe-planner"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+
+[[vectorize]]
+binding = "VECTORS"
+index_name = "pspe-kb"
+
+[ai]
+binding = "AI"
