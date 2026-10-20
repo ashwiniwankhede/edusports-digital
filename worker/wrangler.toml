@@ -39,3 +39,10 @@ index_name = "pspe-kb"
 
 [ai]
 binding = "AI"
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = true
+
+
