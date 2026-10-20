@@ -3,7 +3,7 @@
 @page { size: A4; margin: 12mm 12mm 12mm 12mm; }
 
 body { background: #fff !important; font-size: 11pt; }
-.no-print, header, main, .toast { display: none !important; }
+.no-print, header, main, .shell, .sidebar, .sb-scrim, .toast { display: none !important; }
 .print-only { display: block !important; }
 
 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

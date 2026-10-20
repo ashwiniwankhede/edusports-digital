@@ -10,7 +10,8 @@ window.APP_CONFIG = {
   // Branding used on screen and on every printed page.
   COMPANY_NAME: "Sportz Village",
   PRODUCT_NAME: "EduSports Digital",
-  WATERMARK_URL: "assets/watermark.svg", // replace with your logo (SVG/PNG, transparent bg)
+  LOGO_URL: "assets/sv-wordmark.png",    // sidebar logo (wide wordmark)
+  WATERMARK_URL: "assets/edusports-logo.png", // print header + watermark (SVG/PNG, transparent bg)
   WATERMARK_OPACITY: 0.07,               // 0.04 – 0.12 reads well on paper
   FOOTER_TEXT: "© Sportz Village",
 };

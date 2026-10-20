@@ -7,7 +7,8 @@
   // ───────── branding ─────────
   $("#brandProduct").textContent = C.PRODUCT_NAME;
   $("#brandCompany").textContent = C.COMPANY_NAME;
-  $("#brandLogo").src = C.WATERMARK_URL;
+  $("#brandLogo").src = C.LOGO_URL || C.WATERMARK_URL;
+  $("#brandLogo").alt = C.COMPANY_NAME;
   document.title = C.PRODUCT_NAME;
   if (Api.demo) $("#demoBanner").hidden = false;
   Api.track("visit");
@@ -28,8 +29,16 @@
   }
 
   // ───────── tabs ─────────
+  const TAB_COPY = {
+    unit: ["Unit Plan Builder", "Set up a unit, then build it class by class."],
+    lesson: ["AI Lesson Plan Builder", "Generate a full lesson plan from a unit class or a direct prompt."],
+    library: ["My Plans", "Unit and lesson plans saved in this browser."],
+  };
   function showTab(name) {
     $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+    const [title, sub] = TAB_COPY[name];
+    $("#topbarTitle").textContent = $("#heroTitle").textContent = title;
+    $("#heroSub").textContent = sub;
     $$(".panel").forEach((p) => (p.hidden = p.id !== `tab-${name}`));
     if (name === "lesson") refreshLessonUnitSelect();
     if (name === "library") renderLibrary();
