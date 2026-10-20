@@ -4,7 +4,7 @@ compatibility_date = "2026-10-01"
 
 [vars]
 # Comma-separated list of sites allowed to call the API (your GitHub Pages domain).
-ALLOWED_ORIGINS = "https://planner.yourdomain.com,http://localhost:8080"
+ALLOWED_ORIGINS = "https://ashwiniwankhede.github.io"
 
 # LLM provider: "anthropic" or "openai". Put the key in a secret (see README).
 LLM_PROVIDER = "anthropic"
@@ -31,7 +31,7 @@ EMBED_MODEL = "@cf/baai/bge-base-en-v1.5"
 [[d1_databases]]
 binding = "DB"
 database_name = "pspe-planner"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "b083c24c-a725-431b-8b04-60cfabf71331"
 
 [[vectorize]]
 binding = "VECTORS"
