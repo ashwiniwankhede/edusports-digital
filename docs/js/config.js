@@ -5,7 +5,7 @@ window.APP_CONFIG = {
   // URL of your deployed Cloudflare Worker (see README → Step 2).
   // Leave empty ("") to run in DEMO MODE: the UI works fully, but
   // lesson plans are generated from a local template instead of AI.
-  API_BASE: "",
+  API_BASE: "https://pspe-planner-api.ashwiniwankhede.workers.dev",
 
   // Branding used on screen and on every printed page.
   COMPANY_NAME: "Sportz Village",
