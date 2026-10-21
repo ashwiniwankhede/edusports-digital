@@ -49,7 +49,8 @@ export async function aiCheck(env, text) {
     model: env.SAFETY_MODEL || env.MODEL,
     system,
     user: `Teacher request:\n"""\n${String(text).slice(0, 6000)}\n"""`,
-    schema, schemaName: "safety_verdict", maxTokens: 200,
+    // Room for thinking (on by default) so the verdict is never cut off; low effort keeps it quick.
+    schema, maxTokens: 1024, effort: "low",
   });
   if (res.verdict === "UNSAFE") return { id: res.category || "ai_flagged", message: res.reason || "This request conflicts with the child-safety policy.", layer: "ai" };
   return null;
@@ -60,7 +61,7 @@ export async function checkInput(env, text) {
   const hit = ruleCheck(text);
   if (hit) return hit;
   try { return await aiCheck(env, text); }
-  catch (e) { console.error("safety classifier failed", e); return null; }
+  catch (e) { console.error(`safety classifier failed: ${e.message}`, e.stack); return null; }
 }
 
 /** Output guardrail: block unsafe text, and guarantee a safeguarding section exists. */
