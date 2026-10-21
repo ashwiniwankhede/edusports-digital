@@ -59,7 +59,7 @@ export default {
       }
       return json({ error: "not_found" }, 404);
     } catch (err) {
-      console.error(err);
+      console.error(`${url.pathname} failed: ${err.message}`, err.stack); // message first so Observability shows it
       if (err.status) return json({ error: "bad_request", message: err.message }, err.status);
       ctx.waitUntil(logEvent(env, { type: "error", payload: { path: url.pathname, message: String(err.message).slice(0, 500) } }).catch(() => {}));
       return json({ error: "server_error", message: "Something went wrong generating the plan. Please try again." }, 500);
@@ -93,7 +93,7 @@ export default {
 
       if (kind === "sequence") {
         const { system, user } = sequencePrompt(req.unit, chunks);
-        const out = await callJSON(env, { system, user, schema: SEQUENCE_SCHEMA, schemaName: "unit_sequence", maxTokens: 6000 });
+        const out = await callJSON(env, { system, user, schema: SEQUENCE_SCHEMA, maxTokens: 16000 });
         const total = req.unit.weeks * req.unit.classesPerWeek;
         const sequence = (out.sequence || []).slice(0, total).map((s) => ({
           week: clamp(s.week, 1, req.unit.weeks, 1), cls: clamp(s.cls, 1, req.unit.classesPerWeek, 1),
@@ -109,7 +109,8 @@ export default {
       }
 
       const { system, user } = lessonPrompt(req, chunks);
-      const raw = await callJSON(env, { system, user, schema: LESSON_SCHEMA, schemaName: "lesson_plan", maxTokens: 6000 });
+      // max_tokens covers thinking plus the plan (thinking is on by default on current models).
+      const raw = await callJSON(env, { system, user, schema: LESSON_SCHEMA, maxTokens: 16000 });
       const checked = checkOutput(raw);
       if (checked.blocked) {
         ctx.waitUntil(logEvent(env, { type: "blocked", anonId, ipHash: ip, payload: { where: "lesson_output", rule: checked.blocked.id, input: req } }));
