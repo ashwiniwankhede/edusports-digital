@@ -4,9 +4,28 @@ window.Store = (() => {
   const KEY = "pspe_planner_v1";
   let mem = { units: [], lessons: [] };
 
+  // Unit plans saved before the planning-template layout (v2): carry over what fits.
+  // Old outcomes become the unit learning outcomes; new sections start blank.
+  function upgradeUnit(u) {
+    if (u.v >= 2) return u;
+    const outcomes = u.outcomes || [];
+    u.v = 2;
+    u.unitNo ||= ""; u.theme ||= ""; u.additionalConcepts ||= "";
+    if (!u.assessHow && (u.formative || u.summative)) {
+      u.assessHow = [u.formative && `Formative: ${u.formative}`, u.summative && `Summative: ${u.summative}`].filter(Boolean).join("; ");
+    }
+    for (const s of u.sequence || []) {
+      const n = outcomes.indexOf(s.outcome);
+      s.los ||= n >= 0 ? [`LO${n + 1}`] : s.outcome === "All unit outcomes" ? outcomes.map((_, i) => `LO${i + 1}`) : [];
+      s.code ||= ""; s.name ||= "";
+    }
+    return u;
+  }
+
   function load() {
     try { const raw = localStorage.getItem(KEY); if (raw) mem = JSON.parse(raw); } catch (_) {}
     mem.units ||= []; mem.lessons ||= [];
+    mem.units.forEach(upgradeUnit);
     return mem;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch (_) {} }
@@ -26,7 +45,7 @@ window.Store = (() => {
     exportAll: () => JSON.stringify(mem, null, 2),
     importAll(json) {
       const data = JSON.parse(json);
-      for (const u of data.units || []) if (!mem.units.some((x) => x.id === u.id)) mem.units.push(u);
+      for (const u of data.units || []) if (!mem.units.some((x) => x.id === u.id)) mem.units.push(upgradeUnit(u));
       for (const l of data.lessons || []) if (!mem.lessons.some((x) => x.id === l.id)) mem.lessons.push(l);
       save();
     },

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { strictSchema, anthropicRequest, parseAnthropic } from "../src/llm.js";
-import { LESSON_SCHEMA, SEQUENCE_SCHEMA } from "../src/prompts.js";
+import { LESSON_SCHEMA, sequenceSchema, DRAFTABLE_SECTIONS } from "../src/prompts.js";
+const SEQUENCE_SCHEMA = sequenceSchema(Object.keys(DRAFTABLE_SECTIONS));
 
 const env = { MODEL: "claude-sonnet-5-5", ANTHROPIC_API_KEY: "k" };
 const objects = (s, out = []) => {

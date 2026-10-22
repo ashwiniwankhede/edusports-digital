@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/print.css" media="print">
+  <style id="printPage">@page { size: A4 portrait; }</style><!-- set per document by printDoc() -->
 </head>
 <body>
   <aside class="sidebar no-print" id="sidebar">
@@ -51,61 +52,118 @@
     <div class="hero">
       <div class="eyebrow">IB PYP · PSPE</div>
       <h1 id="heroTitle">Unit Plan Builder</h1>
-      <p id="heroSub">Set up a unit, then build it class by class.</p>
+      <p id="heroSub">Follows the PSPE / PE planning template. Fill in the unit, then build its timeline lesson by lesson.</p>
     </div>
 
     <!-- ───────────── UNIT PLAN BUILDER ───────────── -->
-    <section class="panel" id="tab-unit">
+    <section class="panel bare" id="tab-unit">
+      <div class="edit-bar" id="editBar" hidden>
+        <span>Editing <b id="editTitle"></b>. Building again updates this plan and rebuilds its timeline.</span>
+        <button type="button" class="btn sm" id="newUnitBtn">Start a new unit</button>
+      </div>
       <form id="unitForm" class="form" autocomplete="off">
-        <h2>Unit details</h2>
-        <div class="grid g2">
-          <label>Unit title<input name="title" required placeholder="e.g. Moving with control"></label>
-          <label>Movement context<select name="context" id="contextSel"></select></label>
-          <label>Grade<select name="grade" id="gradeSel"></select></label>
-          <label>PSPE phase<select name="phase" id="phaseSel"></select></label>
+        <div class="sec">
+          <h2>Unit details</h2>
+          <div class="grid g4">
+            <label>Grade<select name="grade" id="gradeSel" required></select></label>
+            <label>Unit #<input name="unitNo" required placeholder="e.g. 3"></label>
+            <label>Date<input type="date" name="date"></label>
+            <label>Name <span class="hint">optional · stays in this browser</span><input name="name" placeholder="Teacher name"></label>
+          </div>
+          <div class="grid g2">
+            <label>Unit title<input name="title" required placeholder="e.g. Moving bodies, healthy me"></label>
+            <label>Movement context<select name="context" id="contextSel"></select></label>
+          </div>
         </div>
 
-        <fieldset><legend>PSPE strand(s)</legend><div class="chips" id="strandChips"></div></fieldset>
-        <fieldset><legend>Key concept(s)</legend><div class="chips" id="kcChips"></div></fieldset>
-
-        <label>Central idea / statement of inquiry<textarea name="centralIdea" rows="2" placeholder="e.g. Our bodies can move in different ways to achieve a goal"></textarea></label>
-        <label>Lines of inquiry <span class="hint">one per line</span><textarea name="linesOfInquiry" rows="3"></textarea></label>
-
-        <h2>Schedule &amp; class profile</h2>
-        <div class="grid g3">
-          <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
-          <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
-          <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
-          <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
-          <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
-          <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
-        </div>
-        <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
-
-        <h2>Approaches to Learning (ATL)</h2>
-        <div id="atlBox" class="atl"></div>
-
-        <h2>Learner Profile attributes</h2>
-        <div class="chips" id="lpChips"></div>
-
-        <h2>Learning outcomes</h2>
-        <label><span class="hint">One per line. Paste from your PSPE scope &amp; sequence.</span>
-          <textarea name="outcomes" rows="5" required placeholder="e.g. Demonstrates control when balancing on different body parts"></textarea></label>
-
-        <h2>Assessment</h2>
-        <div class="grid g2">
-          <label>Formative<textarea name="formative" rows="2" placeholder="e.g. Peer feedback checklists, teacher observation"></textarea></label>
-          <label>Summative<textarea name="summative" rows="2" placeholder="e.g. Perform a 3-balance sequence with smooth transitions"></textarea></label>
+        <div class="sec">
+          <h2><span class="num">1</span>The unit of inquiry</h2>
+          <p class="sub">What is being focussed on in each layer?</p>
+          <label>Transdisciplinary theme<select name="theme" id="themeSel" required></select></label>
+          <label>Central idea<textarea name="centralIdea" rows="2" required placeholder="e.g. Our bodies grow and change, and the choices we make help keep them healthy"></textarea></label>
+          <label>Lines of inquiry <span class="hint">one per line</span><textarea name="linesOfInquiry" rows="3" required></textarea></label>
+          <fieldset><legend>Key concepts</legend><div class="chips" id="kcChips"></div></fieldset>
+          <label>Additional concepts <span class="hint">optional</span><input name="additionalConcepts" placeholder="e.g. Balance, control, wellbeing"></label>
+          <fieldset><legend>Approaches to Learning (ATL)</legend><div id="atlBox" class="atl"></div></fieldset>
+          <fieldset><legend>Learner Profile attributes</legend><div class="chips" id="lpChips"></div></fieldset>
         </div>
 
-        <div class="actions">
-          <button type="submit" class="btn primary">Build unit plan</button>
-          <button type="button" class="btn" id="aiSequenceBtn">Build + draft class sequence with AI</button>
-          <button type="reset" class="btn ghost">Clear</button>
+        <div class="sec">
+          <h2>Unit learning outcomes</h2>
+          <p class="sub">Generic outcomes for the whole unit, one per line. They are numbered LO1, LO2… and the AI expands them into a learning outcome for each lesson.</p>
+          <textarea name="outcomes" rows="4" required placeholder="e.g. Balance on different body parts with control"></textarea>
+        </div>
+
+        <p class="ai-note">The sections below are optional. Anything left blank is drafted by <b>Build + draft with AI</b>; what you type is never changed.</p>
+
+        <div class="sec">
+          <h2>Transdisciplinary (TD) learning concepts</h2>
+          <p class="sub">What parts of the central theme and which LOIs will your transdisciplinary learning focus on?</p>
+          <textarea name="tdConcepts" rows="2"></textarea>
+        </div>
+
+        <div class="sec">
+          <h2>PSPE student learning concepts &amp; learning outcomes</h2>
+          <p class="sub">What SLCs and SLOs will drive the learning in this unit? One per line.</p>
+          <div class="grid g4">
+            <label>Movement<textarea name="sloMovement" rows="4"></textarea></label>
+            <label>Wellness<textarea name="sloWellness" rows="4"></textarea></label>
+            <label>Interactions<textarea name="sloInteractions" rows="4"></textarea></label>
+            <label>Identity<textarea name="sloIdentity" rows="4"></textarea></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h2>Unit success criteria</h2>
+          <p class="sub">One per line.</p>
+          <div class="grid g3">
+            <label>Knowledge <span class="hint">facts and information</span><textarea name="knowledge" rows="4"></textarea></label>
+            <label>Understandings <span class="hint">conceptual understanding</span><textarea name="understandings" rows="4"></textarea></label>
+            <label>Skills <span class="hint">processes, strategies, ATL, LP</span><textarea name="skills" rows="4"></textarea></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h2>Assessment approach &amp; summary</h2>
+          <div class="grid g3">
+            <label>What is being assessed <span class="hint">skills, concepts, behaviours</span><textarea name="assessWhat" rows="3"></textarea></label>
+            <label>How it is assessed <span class="hint">observation, peer feedback, reflection</span><textarea name="assessHow" rows="3"></textarea></label>
+            <label>When <span class="hint">formative vs summative moments</span><textarea name="assessWhen" rows="3"></textarea></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h2>Unit rationale</h2>
+          <div class="grid g3">
+            <label>Main learning this unit develops<textarea name="ratLearning" rows="3"></textarea></label>
+            <label>Why PE is the right place <span class="hint">what students experience or do through movement</span><textarea name="ratWhyPE" rows="3"></textarea></label>
+            <label>Behaviours or skills developed intentionally<textarea name="ratBehaviours" rows="3"></textarea></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h2>Schedule &amp; class profile</h2>
+          <p class="sub">Used to build the timeline and the lesson plans.</p>
+          <div class="grid g3">
+            <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
+            <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
+            <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
+            <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
+            <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
+            <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
+          </div>
+          <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
+
+          <div class="actions">
+            <button type="submit" class="btn primary">Build unit plan</button>
+            <button type="button" class="btn" id="aiSequenceBtn">Build + draft with AI</button>
+            <button type="reset" class="btn ghost">Clear</button>
+          </div>
+          <p class="hint">The end of unit reflection is filled in on the saved plan after teaching.</p>
         </div>
       </form>
 
-      <div id="unitOut" class="output" hidden></div>
+      <div id="unitOut" class="sec output" hidden></div>
     </section>
 
     <!-- ───────────── LESSON PLAN BUILDER ───────────── -->

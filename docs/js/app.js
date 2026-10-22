@@ -30,7 +30,7 @@
 
   // ───────── tabs ─────────
   const TAB_COPY = {
-    unit: ["Unit Plan Builder", "Set up a unit, then build it class by class."],
+    unit: ["Unit Plan Builder", "Follows the PSPE / PE planning template. Fill in the unit, then build its timeline lesson by lesson."],
     lesson: ["AI Lesson Plan Builder", "Generate a full lesson plan from a unit class or a direct prompt."],
     library: ["My Plans", "Unit and lesson plans saved in this browser."],
   };
@@ -50,9 +50,8 @@
   const uf = $("#unitForm");
   options($("#contextSel"), IB.contexts);
   options($("#gradeSel"), IB.grades);
-  options($("#phaseSel"), IB.phases);
+  $("#themeSel").innerHTML = `<option value="">Choose a theme…</option>` + IB.themes.map((x) => `<option>${esc(x)}</option>`).join("");
   options($("#promptGrade"), IB.grades);
-  chips($("#strandChips"), "strands", IB.strands);
   chips($("#kcChips"), "keyConcepts", IB.keyConcepts);
   chips($("#lpChips"), "lp", IB.learnerProfile);
   $("#atlBox").innerHTML = Object.entries(IB.atl).map(([cat, subs]) =>
@@ -66,72 +65,138 @@
   uf.boys.addEventListener("input", updateRatio);
   uf.girls.addEventListener("input", updateRatio);
 
+  // Form inputs are named after the unit fields they hold.
+  const TEXT_FIELDS = ["grade", "unitNo", "date", "name", "title", "context", "theme", "centralIdea", "additionalConcepts", "facilities",
+    "tdConcepts", "assessWhat", "assessHow", "assessWhen", "ratLearning", "ratWhyPE", "ratBehaviours"];
+  const LIST_FIELDS = ["linesOfInquiry", "outcomes", "sloMovement", "sloWellness", "sloInteractions", "sloIdentity", "knowledge", "understandings", "skills"];
+  const NUM_FIELDS = ["weeks", "classesPerWeek", "minutesPerClass", "boys", "girls"];
+  const CHIP_FIELDS = ["keyConcepts", "atl", "lp"];
+  const today = () => new Date().toISOString().slice(0, 10);
+
   function readUnit() {
-    const f = uf;
-    return {
-      id: Store.uid(), created: new Date().toISOString(),
-      title: f.title.value.trim(), context: f.context.value, grade: f.grade.value, phase: f.phase.value,
-      strands: checked(f, "strands"), keyConcepts: checked(f, "keyConcepts"),
-      centralIdea: f.centralIdea.value.trim(), linesOfInquiry: lines(f.linesOfInquiry.value),
-      weeks: +f.weeks.value, classesPerWeek: +f.classesPerWeek.value, minutesPerClass: +f.minutesPerClass.value,
-      boys: +f.boys.value || 0, girls: +f.girls.value || 0, facilities: f.facilities.value.trim(),
-      atl: checked(f, "atl"), lp: checked(f, "lp"), outcomes: lines(f.outcomes.value),
-      formative: f.formative.value.trim(), summative: f.summative.value.trim(),
-      sequence: [],
-    };
+    const u = { v: 2, sequence: [] };
+    for (const k of TEXT_FIELDS) u[k] = uf[k].value.trim();
+    for (const k of LIST_FIELDS) u[k] = lines(uf[k].value);
+    for (const k of NUM_FIELDS) u[k] = +uf[k].value || 0;
+    for (const k of CHIP_FIELDS) u[k] = checked(uf, k);
+    return u;
   }
-  // Inputs sent to analytics (everything except the generated sequence).
-  const unitInputs = (u) => { const { sequence, id, created, ...rest } = u; return rest; };
+  function fillForm(u) {
+    for (const k of TEXT_FIELDS) uf[k].value = u[k] ?? "";
+    for (const k of LIST_FIELDS) uf[k].value = (u[k] || []).join("\n");
+    for (const k of NUM_FIELDS) uf[k].value = u[k] ?? "";
+    for (const k of CHIP_FIELDS) $$(`input[name="${k}"]`, uf).forEach((i) => (i.checked = (u[k] || []).includes(i.value)));
+    updateRatio();
+  }
+  // Unit fields sent to the AI and to analytics: never the teacher's name, the reflection or the timeline.
+  const unitInputs = (u) => {
+    const { sequence, id, created, name, refWorked, refStruggled, refAdjust, refInforms, ...rest } = u;
+    return rest;
+  };
+
+  // Building again while editing updates that plan; lesson codes and links survive by week/class.
+  let editingId = null;
+  function setEditing(u) {
+    editingId = u ? u.id : null;
+    $("#editBar").hidden = !u;
+    if (u) $("#editTitle").textContent = u.title;
+  }
+  function saveBuilt(u) {
+    const prev = editingId && Store.getUnit(editingId);
+    if (prev) {
+      Object.assign(u, { id: prev.id, created: prev.created, refWorked: prev.refWorked, refStruggled: prev.refStruggled, refAdjust: prev.refAdjust, refInforms: prev.refInforms });
+      for (const s of u.sequence) {
+        const old = prev.sequence.find((x) => x.week === s.week && x.cls === s.cls);
+        if (old) Object.assign(s, { code: old.code || s.code || "", lessonId: old.lessonId });
+      }
+    } else Object.assign(u, { id: Store.uid(), created: new Date().toISOString() });
+    Store.upsertUnit(u);
+    setEditing(u);
+    fillForm(u);
+    showUnit(u);
+  }
+  function validUnit() {
+    if (!uf.reportValidity()) return false;
+    if (!checked(uf, "keyConcepts").length) { toast("Choose at least one key concept.", true); $("#kcChips").scrollIntoView({ block: "center" }); return false; }
+    return true;
+  }
 
   let currentUnit = null;
-
-  function showUnit(u) {
+  const unitBar = `<div class="out-bar">
+    <button class="btn" data-act="edit-unit">Edit unit details</button>
+    <button class="btn" data-act="auto-codes">Auto-assign lesson codes</button>
+    <button class="btn" data-act="print-unit">Print / PDF</button></div>`;
+  function showUnit(u, { scroll = true } = {}) {
     currentUnit = u;
     const out = $("#unitOut");
     out.hidden = false;
-    out.innerHTML = `<div class="out-bar"><button class="btn" data-act="print-unit">Print / PDF</button></div>${Render.unit(u, { editable: true })}`;
-    out.scrollIntoView({ behavior: "smooth", block: "start" });
+    out.innerHTML = unitBar + Render.unit(u, { editable: true });
+    if (scroll) out.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   uf.addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!validUnit()) return;
     const u = readUnit();
     u.sequence = Demo.sequence(u);
-    Store.upsertUnit(u);
+    saveBuilt(u);
     Api.track("unit_created", { via: "rules", inputs: unitInputs(u) });
-    showUnit(u);
     toast("Unit plan built and saved");
   });
 
   $("#aiSequenceBtn").addEventListener("click", async (e) => {
-    if (!uf.reportValidity()) return;
+    if (!validUnit()) return;
     const btn = e.currentTarget;
     const u = readUnit();
-    busy(btn, true, "Drafting sequence…");
+    busy(btn, true, "Drafting unit plan…");
     try {
-      const { sequence } = await Api.draftSequence(unitInputs(u));
+      const { sequence, sections } = await Api.draftSequence(unitInputs(u));
       u.sequence = Array.isArray(sequence) && sequence.length ? sequence : Demo.sequence(u);
-      Store.upsertUnit(u);
+      // AI drafts only fill what the teacher left blank.
+      for (const [k, v] of Object.entries(sections || {})) {
+        const blank = Array.isArray(u[k]) ? !u[k].length : !u[k];
+        if (blank && (LIST_FIELDS.includes(k) || TEXT_FIELDS.includes(k))) u[k] = v;
+      }
+      saveBuilt(u);
       Api.track("unit_created", { via: "ai", inputs: unitInputs(u) });
-      showUnit(u);
       toast("Unit plan drafted and saved");
-    } catch (err) { toast(err.message, true); }
-    finally { busy(btn, false); }
+    } catch (err) {
+      toast(err.code === "blocked" ? `Request blocked by safety guardrails: ${err.message}` : err.message, true);
+    } finally { busy(btn, false); }
   });
 
-  uf.addEventListener("reset", () => setTimeout(updateRatio));
+  uf.addEventListener("reset", () => setTimeout(() => { uf.date.value = today(); updateRatio(); setEditing(null); }));
+  $("#newUnitBtn").addEventListener("click", () => { uf.reset(); $("#unitOut").hidden = true; currentUnit = null; window.scrollTo({ top: 0 }); });
 
-  // Inline edits to the sequence + per-class lesson buttons
+  // e.g. "Grade 1" → G1, "KG2" → KG2
+  const gradeCode = (g) => (/^grade\s*(\d+)/i.test(g) ? `G${g.match(/\d+/)[0]}` : String(g || "").replace(/\s+/g, "").toUpperCase());
+  function autoCodes(u) {
+    const prefix = [gradeCode(u.grade), u.unitNo && `U${u.unitNo}`].filter(Boolean).join("-");
+    let n = 0;
+    u.sequence.forEach((s, i) => { if (!s.code) { s.code = `${prefix}-L${String(i + 1).padStart(2, "0")}`; n++; } });
+    return n;
+  }
+
+  // Inline edits to the timeline and the reflection, plus per-lesson buttons
   $("#unitOut").addEventListener("focusout", (e) => {
+    if (!currentUnit) return;
     const cell = e.target.closest("[data-idx]");
-    if (!cell || !currentUnit) return;
-    currentUnit.sequence[+cell.dataset.idx][cell.dataset.field] = cell.textContent.trim();
+    const field = e.target.closest("[data-unit-field]");
+    if (cell) currentUnit.sequence[+cell.dataset.idx][cell.dataset.field] = cell.textContent.trim();
+    else if (field) currentUnit[field.dataset.unitField] = field.innerText.trim();
+    else return;
     Store.upsertUnit(currentUnit);
   });
   $("#unitOut").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
-    if (b.dataset.act === "print-unit") printDoc(Render.unit(currentUnit), currentUnit.title);
+    if (b.dataset.act === "print-unit") printDoc(Render.unit(currentUnit), currentUnit.title, { landscape: true });
+    if (b.dataset.act === "edit-unit") { fillForm(currentUnit); setEditing(currentUnit); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    if (b.dataset.act === "auto-codes") {
+      const n = autoCodes(currentUnit);
+      Store.upsertUnit(currentUnit); showUnit(currentUnit, { scroll: false });
+      toast(n ? `Assigned ${n} lesson code${n > 1 ? "s" : ""}` : "Every lesson already has a code");
+    }
     if (b.dataset.openLesson) { showTab("lesson"); showLesson(Store.getLesson(b.dataset.openLesson)); }
     if (b.dataset.genLesson) {
       const s = currentUnit.sequence[+b.dataset.genLesson];
@@ -240,14 +305,14 @@
       toast(err.code === "blocked" ? `Request blocked by safety guardrails: ${err.message}` : err.message, true);
     } finally { busy(btn, false); }
   });
-  function showUnitQuiet(u) { currentUnit = u; $("#unitOut").innerHTML = `<div class="out-bar"><button class="btn" data-act="print-unit">Print / PDF</button></div>${Render.unit(u, { editable: true })}`; }
+  function showUnitQuiet(u) { currentUnit = u; $("#unitOut").innerHTML = unitBar + Render.unit(u, { editable: true }); }
 
   // ───────── library ─────────
   function renderLibrary() {
     const units = Store.units(), lessons = Store.lessons();
     const d = (iso) => new Date(iso).toLocaleDateString();
     $("#libUnits").innerHTML = units.length ? units.map((u) => `<div class="lib-item">
-      <div><b>${esc(u.title)}</b><br><small>${esc(u.grade)} · ${u.weeks}w × ${u.classesPerWeek} · ${d(u.created)}</small></div>
+      <div><b>${esc(u.title)}</b><br><small>${esc(u.grade)}${u.unitNo ? ` · Unit ${esc(u.unitNo)}` : ""} · ${u.weeks}w × ${u.classesPerWeek} · ${d(u.created)}</small></div>
       <div class="actions" style="margin:0"><button class="btn sm" data-open-unit="${u.id}">Open</button>
       <button class="btn sm" data-print-unit="${u.id}">Print</button><button class="btn sm ghost" data-del-unit="${u.id}">Delete</button></div></div>`).join("")
       : `<p class="empty">No unit plans yet.</p>`;
@@ -261,7 +326,7 @@
     const b = e.target.closest("button"); if (!b) return;
     const ds = b.dataset;
     if (ds.openUnit) { showTab("unit"); showUnit(Store.getUnit(ds.openUnit)); }
-    if (ds.printUnit) { const u = Store.getUnit(ds.printUnit); printDoc(Render.unit(u), u.title); }
+    if (ds.printUnit) { const u = Store.getUnit(ds.printUnit); printDoc(Render.unit(u), u.title, { landscape: true }); }
     if (ds.delUnit && confirm("Delete this unit plan?")) { Store.deleteUnit(ds.delUnit); renderLibrary(); }
     if (ds.openLesson) { showTab("lesson"); showLesson(Store.getLesson(ds.openLesson)); }
     if (ds.printLesson) { const l = Store.getLesson(ds.printLesson); printDoc(Render.lesson(l), l.title); }
@@ -280,7 +345,9 @@
   });
 
   // ───────── print with watermark ─────────
-  function printDoc(html, title) {
+  // Unit plans print A4 landscape, lesson plans portrait.
+  function printDoc(html, title, { landscape = false } = {}) {
+    $("#printPage").textContent = `@page { size: A4 ${landscape ? "landscape" : "portrait"}; }`;
     $("#printWm").src = C.WATERMARK_URL;
     $("#printWm").style.opacity = C.WATERMARK_OPACITY;
     $("#printLogo").src = C.WATERMARK_URL;
@@ -297,6 +364,7 @@
     if (img.complete) window.print(); else { img.onload = img.onerror = () => window.print(); }
   }
 
+  uf.date.value = today();
   updateRatio();
   setMode("unit");
   refreshLessonUnitSelect();
