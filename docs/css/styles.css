@@ -121,7 +121,6 @@ legend{font-weight:600;font-size:13px;margin-bottom:8px}
 .sec h2{margin:0 0 4px;font-size:16px}
 .sec .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
 .sec.output{border-top:0;margin-top:24px;padding-top:20px}
-.num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--red-soft);color:var(--red);font-size:12px;font-weight:800;margin-right:8px;vertical-align:1px}
 .g4{grid-template-columns:repeat(4,1fr)}
 .ai-note{font-size:13px;color:var(--brand);background:var(--brand-soft);border-radius:var(--radius-sm);padding:10px 14px;margin:0 0 16px}
 .edit-bar[hidden]{display:none}

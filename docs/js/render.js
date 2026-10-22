@@ -76,7 +76,7 @@ window.Render = (() => {
         ${u.name ? fact("Name", esc(u.name), "w3") : ""}
       </div>
 
-      <div class="sh">1. The Unit of Inquiry <small>What is being focussed on in each layer?</small></div>
+      <div class="sh">The Unit of Inquiry <small>What is being focussed on in each layer?</small></div>
       <div class="uoi">
         ${fact("Transdisciplinary theme", esc(u.theme), "w2")}${fact("Central idea", esc(u.centralIdea), "w2")}
         ${fact("Lines of inquiry", ul(u.linesOfInquiry), "w2")}
