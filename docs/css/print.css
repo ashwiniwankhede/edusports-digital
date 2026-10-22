@@ -31,3 +31,14 @@ body { background: #fff !important; font-size: 11pt; }
 .doc tr, .doc .safety, .doc .kv { break-inside: avoid; }
 .doc .no-print-inline, .out-bar, .btn { display: none !important; }
 .doc table { display: table !important; }
+
+/* Unit plan (printed A4 landscape — see printDoc in js/app.js) */
+.u h1 { font-size: 17pt; }
+.u table { font-size: 9.5pt; }
+.u .tl td, .u .tl th.rowh { font-size: 8.5pt; }
+.u .pb { break-before: page; }
+.u .facts, .u .uoi, .u .los, .u .sh, .u table, .u .q, .u .ans { break-inside: avoid; }
+.u .sh, .u .h3, .u .q { break-after: avoid; }
+.u .ans { min-height: 0; }
+.u .ans.empty { height: 58px; border-bottom: 0; background: repeating-linear-gradient(transparent 0 28px, #9aa4ad 28px 29px); }
+.u .ans.empty::before, .u .edit:empty::before { content: none; }

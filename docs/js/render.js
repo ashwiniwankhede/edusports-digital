@@ -3,46 +3,116 @@ window.Render = (() => {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const list = (arr) => (arr && arr.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p class='empty'>—</p>");
   const tags = (arr) => (arr && arr.length ? arr.map((x) => `<span class="tag">${esc(x)}</span>`).join("") : "—");
-  const ratio = (b, g) => { const t = b + g; return t ? `${Math.round((b / t) * 100)} : ${Math.round((g / t) * 100)} (boys : girls, ${t} students)` : "—"; };
+
+  // ── Unit plan: follows the PSPE / PE planning template (screen + A4 landscape print) ──
+  const ul = (arr) => (arr && arr.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
+  const joined = (arr, sep = ", ") => esc((arr || []).join(sep));
+  const fact = (label, value, cls = "") => `<div class="${cls}"><span>${label}</span>${value || "—"}</div>`;
+  const ukDate = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || "") ? iso.split("-").reverse().join("/") : esc(iso));
+  const PER_PAGE = 8; // timeline columns per landscape page
+
+  // An answer block: text, or blank ruled lines on paper when empty. Editable on screen when `field` is set.
+  function answer(text, editable, field) {
+    if (editable && field) return `<div class="ans edit" contenteditable="true" data-unit-field="${field}" data-ph="Click to add">${esc(text)}</div>`;
+    return text ? `<div class="ans">${esc(text)}</div>` : `<div class="ans empty"></div>`;
+  }
+
+  function timeline(u, editable) {
+    const seq = u.sequence || [];
+    const cell = (idx, field, value) => editable
+      ? `<div contenteditable="true" class="edit" data-idx="${idx}" data-field="${field}" data-ph="—">${esc(value)}</div>` : esc(value);
+    const ROWS = [
+      ["Lesson Plan code &amp; name", (s, i) => editable
+        ? `<div contenteditable="true" class="edit code" data-idx="${i}" data-field="code" data-ph="Code">${esc(s.code)}</div>${cell(i, "name", s.name)}`
+        : `${s.code ? `<b>${esc(s.code)}</b><br>` : ""}${esc(s.name)}`],
+      ["Conceptual focus (PSPE / TD)", (s, i) => cell(i, "focus", s.focus)],
+      ["Learning outcomes", (s, i) => `${(s.los || []).map((x) => `<span class="lo">${esc(x)}</span>`).join(" ")}${cell(i, "outcome", s.outcome)}`],
+      ["Key concept focus", (s, i) => cell(i, "keyConcept", s.keyConcept)],
+      ["Learner profile", (s, i) => cell(i, "lp", s.lp)],
+      ["Approaches to learning", (s, i) => cell(i, "atl", s.atl)],
+      ["Formative/ summative assessment", (s, i) => cell(i, "assessment", s.assessment)],
+    ];
+    const pages = [];
+    for (let start = 0; start < seq.length; start += PER_PAGE) {
+      const part = seq.slice(start, start + PER_PAGE);
+      const title = seq.length > PER_PAGE ? `Unit time line: lessons ${start + 1}–${start + part.length} of ${seq.length}` : "Unit time line:";
+      const head = part.map((s, j) => `<th>W${s.week} / L${start + j + 1}</th>`).join("");
+      const body = ROWS.map(([label, fn]) => `<tr><th class="rowh">${label}</th>${part.map((s, j) => `<td>${fn(s, start + j)}</td>`).join("")}</tr>`).join("");
+      const buttons = editable ? `<tr class="no-print-inline"><th class="rowh">Lesson plan</th>${part.map((s, j) => {
+        const idx = start + j, lessonId = s.lessonId && Store.getLesson(s.lessonId) ? s.lessonId : "";
+        return `<td>${lessonId ? `<button class="btn sm" data-open-lesson="${lessonId}">Open</button> ` : ""}<button class="btn sm" data-gen-lesson="${idx}">${lessonId ? "Regenerate" : "Generate"}</button></td>`;
+      }).join("")}</tr>` : "";
+      pages.push(`<table class="tl pb"><thead><tr class="band"><th colspan="${part.length + 1}">${title}</th></tr>
+        <tr><th class="rowh">Week/ Lesson #</th>${head}</tr></thead><tbody>${body}${buttons}</tbody></table>`);
+    }
+    return pages.join("");
+  }
 
   function unit(u, { editable = false } = {}) {
-    const rows = u.sequence.map((s, idx) => {
-      const lessonId = s.lessonId && Store.getLesson(s.lessonId) ? s.lessonId : "";
-      return `<tr>
-        <td>W${s.week}</td><td>C${s.cls}</td>
-        <td class="seq-cell" ${editable ? `contenteditable="true" data-idx="${idx}" data-field="focus"` : ""}>${esc(s.focus)}</td>
-        <td class="seq-cell" ${editable ? `contenteditable="true" data-idx="${idx}" data-field="outcome"` : ""}>${esc(s.outcome)}</td>
-        ${editable ? `<td class="no-print-inline">
-          ${lessonId ? `<button class="btn sm" data-open-lesson="${lessonId}">Open lesson</button>` : ""}
-          <button class="btn sm" data-gen-lesson="${idx}">${lessonId ? "Regenerate" : "Generate lesson"}</button></td>` : ""}
-      </tr>`;
-    }).join("");
+    const total = u.weeks * u.classesPerWeek;
+    const students = (u.boys || 0) + (u.girls || 0);
+    const slo = [["Movement", u.sloMovement], ["Wellness", u.sloWellness], ["Interactions", u.sloInteractions], ["Identity", u.sloIdentity]];
+    const qa = (qs) => qs.map(([q, text, field]) => `<div class="q">${q}</div>${answer(text, editable, field)}`).join("");
 
-    return `<article class="doc">
-      <h1>${esc(u.title)}</h1>
-      <div class="meta">IB PYP · PSPE unit plan · ${esc(u.grade)} · ${esc(u.phase)} · ${esc(u.context)}</div>
+    return `<article class="doc u">
+      <h1>${esc(u.grade)} Unit Planner</h1>
+      <div class="facts">
+        ${fact("Grade", esc(u.grade))}${fact("Unit #", esc(u.unitNo))}${fact("Unit title", esc(u.title), "w2")}
+        ${fact("Date", ukDate(u.date))}${fact("Duration", `${u.weeks} weeks × ${u.classesPerWeek} classes × ${u.minutesPerClass} min (${total} lessons)`)}
+        ${fact("Movement context", esc(u.context), "w2")}
+        ${fact("Class profile", students ? `${students} students (${u.boys || 0} boys, ${u.girls || 0} girls)` : "")}
+        ${u.name ? fact("Name", esc(u.name), "w3") : ""}
+      </div>
 
-      <h4>Overview</h4>
-      <dl class="kv">
-        <dt>Strand(s)</dt><dd>${tags(u.strands)}</dd>
-        <dt>Key concept(s)</dt><dd>${tags(u.keyConcepts)}</dd>
-        <dt>Central idea</dt><dd>${esc(u.centralIdea) || "—"}</dd>
-        <dt>Duration</dt><dd>${u.weeks} weeks × ${u.classesPerWeek} classes/week × ${u.minutesPerClass} min = ${u.weeks * u.classesPerWeek} classes</dd>
-        <dt>Class profile</dt><dd>${ratio(u.boys, u.girls)}</dd>
-        <dt>Facilities &amp; equipment</dt><dd>${esc(u.facilities) || "—"}</dd>
-      </dl>
+      <div class="sh">1. The Unit of Inquiry <small>What is being focussed on in each layer?</small></div>
+      <div class="uoi">
+        ${fact("Transdisciplinary theme", esc(u.theme), "w2")}${fact("Central idea", esc(u.centralIdea), "w2")}
+        ${fact("Lines of inquiry", ul(u.linesOfInquiry), "w2")}
+        ${fact("Key concepts", joined(u.keyConcepts))}${fact("Learner Profile attributes", joined(u.lp))}
+        ${fact("ATL skills", joined(u.atl, " · "), "w2")}
+      </div>
 
-      <h4>Lines of inquiry</h4>${list(u.linesOfInquiry)}
-      <h4>Learning outcomes</h4>${list(u.outcomes)}
-      <h4>Approaches to Learning</h4><p>${tags(u.atl)}</p>
-      <h4>Learner Profile attributes</h4><p>${tags(u.lp)}</p>
+      <div class="sh">Unit Learning Outcomes <small>By the end of the unit, students will be able to…</small></div>
+      <ol class="los">${(u.outcomes || []).map((o, i) => `<li><b>LO${i + 1}</b>${esc(o)}</li>`).join("")}</ol>
 
-      <h4>Assessment</h4>
-      <dl class="kv"><dt>Formative</dt><dd>${esc(u.formative) || "—"}</dd><dt>Summative</dt><dd>${esc(u.summative) || "—"}</dd></dl>
+      <table class="pb">
+        <tr class="band"><th colspan="3" class="big">Unit Success criteria Planner</th></tr>
+        <tr class="colh"><th>Knowledge<small>What do we want students to know at the end of the unit? Facts and information</small></th>
+          <th>Understandings<small>What conceptual understanding do we want students to gain?</small></th>
+          <th>Skills<small>What skills do we want our students to learn? Processes, strategies, ATLs and Learner profiles</small></th></tr>
+        <tr class="tall"><td>${ul(u.knowledge)}</td><td>${ul(u.understandings)}</td><td>${ul(u.skills)}</td></tr>
+      </table>
+      <div class="h3">Assessment Approach and Summary</div>
+      <table>
+        <tr><td class="lbl">1. What is being assessed<small>skills, concepts, behaviours</small></td><td>${esc(u.assessWhat)}</td></tr>
+        <tr><td class="lbl">2. How it is assessed<small>observation, peer feedback, reflection</small></td><td>${esc(u.assessHow)}</td></tr>
+        <tr><td class="lbl">3. When<small>formative vs summative moments</small></td><td>${esc(u.assessWhen)}</td></tr>
+      </table>
 
-      <h4>Class sequence ${editable ? `<span class="hint no-print-inline">— click a cell to edit</span>` : ""}</h4>
-      <table><thead><tr><th>Week</th><th>Class</th><th>Focus</th><th>Outcome addressed</th>${editable ? `<th class="no-print-inline"></th>` : ""}</tr></thead>
-      <tbody>${rows}</tbody></table>
+      <table class="pb">
+        <tr class="band"><th colspan="4" class="big">Unit Planner</th></tr>
+        <tr class="band"><th colspan="4">Transdisciplinary (TD) learning concepts - <small>what parts of the central theme and which LOIs will your transdisciplinary learning focus on?</small></th></tr>
+        <tr class="mid"><td colspan="4">${esc(u.tdConcepts)}</td></tr>
+        <tr class="band"><th colspan="4">PSPE Student Learning concepts and learning outcomes - <small>what SLC and SLOs will drive the learning in this unit?</small></th></tr>
+        <tr class="colh">${slo.map(([h]) => `<th>${h}</th>`).join("")}</tr>
+        <tr class="mid">${slo.map(([, v]) => `<td>${ul(v)}</td>`).join("")}</tr>
+      </table>
+      <table>
+        <tr class="band"><th colspan="3">What key and additional concepts will guide the inquiry? What Learner profiles and Approaches to learning are we looking to develop to support the learning in this unit?</th></tr>
+        <tr class="colh"><th>Key and additional concepts</th><th>Learner profiles</th><th>Approaches to Learning</th></tr>
+        <tr class="mid"><td>${u.keyConcepts?.length ? `Key: ${joined(u.keyConcepts)}` : ""}${u.additionalConcepts ? `<br>Additional: ${esc(u.additionalConcepts)}` : ""}</td>
+          <td>${joined(u.lp)}</td><td>${ul(u.atl)}</td></tr>
+      </table>
+
+      ${timeline(u, editable)}
+
+      <div class="pb h3">Unit rationale</div>
+      ${qa([["1. What is the main learning this unit is trying to develop?", u.ratLearning],
+        ["2. Why is PE the right place for this learning? (What will students <i>experience or do</i> through movement that makes this learning meaningful?)", u.ratWhyPE],
+        ["3. What kinds of student behaviours or skills will this unit intentionally develop?", u.ratBehaviours]])}
+      <div class="h3">End of Unit reflection ${editable ? `<span class="hint no-print-inline">— fill in after teaching the unit</span>` : ""}</div>
+      ${qa([["1. What worked well?", u.refWorked, "refWorked"], ["2. What did students struggle with?", u.refStruggled, "refStruggled"],
+        ["3. What would you adjust next time?", u.refAdjust, "refAdjust"], ["4. How does this inform the next unit?", u.refInforms, "refInforms"]])}
     </article>`;
   }
 

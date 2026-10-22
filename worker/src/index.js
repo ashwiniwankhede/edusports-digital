@@ -1,6 +1,6 @@
 import { callJSON } from "./llm.js";
 import { checkInput, checkOutput, ruleCheck, redactDeep } from "./guardrails.js";
-import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, SEQUENCE_SCHEMA } from "./prompts.js";
+import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS } from "./prompts.js";
 import { retrieve, ingestChunks, deleteSource, listSources, chunkText } from "./rag.js";
 import { ipHash, logEvent, overLimit, stats, exportEvents } from "./analytics.js";
 
@@ -92,20 +92,31 @@ export default {
       }
 
       if (kind === "sequence") {
-        const { system, user } = sequencePrompt(req.unit, chunks);
-        const out = await callJSON(env, { system, user, schema: SEQUENCE_SCHEMA, maxTokens: 16000 });
+        const blank = blankSections(req.unit);
+        const { system, user } = sequencePrompt(req.unit, chunks, blank);
+        const out = await callJSON(env, { system, user, schema: sequenceSchema(blank), maxTokens: 16000 });
         const total = req.unit.weeks * req.unit.classesPerWeek;
+        const nLos = req.unit.outcomes.length;
         const sequence = (out.sequence || []).slice(0, total).map((s) => ({
           week: clamp(s.week, 1, req.unit.weeks, 1), cls: clamp(s.cls, 1, req.unit.classesPerWeek, 1),
-          focus: String(s.focus || ""), outcome: String(s.outcome || ""),
+          name: str(s.name, 120), focus: str(s.focus), outcome: str(s.outcome),
+          los: arr(s.los, 10, 8).map((x) => x.toUpperCase().replace(/\s+/g, "")).filter((x) => /^LO\d+$/.test(x) && +x.slice(2) <= nLos),
+          keyConcept: str(s.keyConcept, 80), lp: str(s.lp, 80), atl: str(s.atl, 160), assessment: str(s.assessment),
         }));
-        const hit = ruleCheck(JSON.stringify(sequence));
+        // Only sections that were blank, in the expected shape.
+        const sections = {};
+        for (const k of blank) {
+          const v = out.sections?.[k];
+          if (DRAFTABLE_SECTIONS[k].type === "array") { const a = arr(v, 8, 400).filter((x) => x.trim()); if (a.length) sections[k] = a; }
+          else if (str(v, 1000).trim()) sections[k] = str(v, 1000).trim();
+        }
+        const hit = ruleCheck(JSON.stringify({ sequence, sections }));
         if (hit) {
           ctx.waitUntil(logEvent(env, { type: "blocked", anonId, ipHash: ip, payload: { where: "sequence_output", rule: hit.id } }));
           return json({ error: "blocked", message: hit.message }, 422);
         }
         ctx.waitUntil(logEvent(env, { type: "sequence_generated", anonId, ipHash: ip, payload: { input: req.unit, model: env.MODEL, rag_sources: chunks.map((c) => c.source), latency_ms: Date.now() - started } }));
-        return json({ sequence });
+        return json({ sequence, sections });
       }
 
       const { system, user } = lessonPrompt(req, chunks);
@@ -154,17 +165,20 @@ function clamp(v, lo, hi, d) { const n = parseInt(v, 10); return Number.isFinite
 const str = (v, max = 300) => String(v ?? "").slice(0, max);
 const arr = (v, maxItems = 20, max = 300) => (Array.isArray(v) ? v.slice(0, maxItems).map((x) => str(x, max)) : []);
 
+// Whitelist of unit fields sent to the model. The teacher's name is deliberately not
+// accepted: it stays in the browser and on the printout only.
 function validateUnit(u = {}) {
   if (!u || typeof u !== "object") throw httpError(400, "unit required");
-  return {
-    title: str(u.title, 150), context: str(u.context, 100), grade: str(u.grade, 30), phase: str(u.phase, 30),
-    strands: arr(u.strands, 3, 40), keyConcepts: arr(u.keyConcepts, 7, 40),
-    centralIdea: str(u.centralIdea, 500), linesOfInquiry: arr(u.linesOfInquiry, 6, 300),
+  const out = {
+    title: str(u.title, 150), unitNo: str(u.unitNo, 20), context: str(u.context, 100), grade: str(u.grade, 30),
+    theme: str(u.theme, 80), centralIdea: str(u.centralIdea, 500), linesOfInquiry: arr(u.linesOfInquiry, 6, 300),
+    keyConcepts: arr(u.keyConcepts, 7, 40), additionalConcepts: str(u.additionalConcepts, 300),
+    atl: arr(u.atl, 25, 120), lp: arr(u.lp, 10, 40), outcomes: arr(u.outcomes, 12, 400),
     weeks: clamp(u.weeks, 1, 20, 6), classesPerWeek: clamp(u.classesPerWeek, 1, 7, 2), minutesPerClass: clamp(u.minutesPerClass, 15, 120, 40),
     boys: clamp(u.boys, 0, 60, 0), girls: clamp(u.girls, 0, 60, 0), facilities: str(u.facilities, 400),
-    atl: arr(u.atl, 25, 120), lp: arr(u.lp, 10, 40), outcomes: arr(u.outcomes, 20, 400),
-    formative: str(u.formative, 500), summative: str(u.summative, 500),
   };
+  for (const [k, def] of Object.entries(DRAFTABLE_SECTIONS)) out[k] = def.type === "array" ? arr(u[k], 8, 400) : str(u[k], 1000);
+  return out;
 }
 
 function validateLesson(b = {}) {

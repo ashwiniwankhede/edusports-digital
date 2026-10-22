@@ -1,26 +1,40 @@
 // Rule-based generators: the default class sequence for a unit, and a template
 // lesson used in demo mode (no backend). The AI path replaces both.
 window.Demo = (() => {
-  // Generic inquiry arc for a PYP PE unit, mapped across the total number of classes.
+  // Generic inquiry arc for a PYP PE unit, mapped across the total number of classes: [name, focus].
   function stageFor(i, total) {
-    if (i === 0) return "Tuning in — diagnostic task & introduce central idea";
-    if (i === total - 1) return "Summative performance & reflection";
-    if (total > 3 && i === total - 2) return "Rehearse & peer feedback for summative task";
+    if (i === 0) return ["Tuning in", "Diagnostic task & introduce the central idea"];
+    if (i === total - 1) return ["Show and reflect", "Summative performance & reflection"];
+    if (total > 3 && i === total - 2) return ["Rehearse", "Rehearse & peer feedback for the summative task"];
     const p = i / (total - 1);
-    if (p < 0.3) return "Finding out — explore & experiment";
-    if (p < 0.65) return "Sorting out — develop & practise skills";
-    return "Going further — apply in game / composition";
+    if (p < 0.3) return ["Finding out", "Explore & experiment"];
+    if (p < 0.65) return ["Sorting out", "Develop & practise skills"];
+    return ["Going further", "Apply in a game or composition"];
   }
+  const FORMATIVE = ["Formative: teacher observation", "Formative: peer feedback", "Formative: exit reflection"];
+  const pick = (arr, i) => (arr && arr.length ? arr[i % arr.length] : "");
 
+  // Rule-based unit timeline. The AI path writes lesson-specific outcomes; rules can only
+  // point each lesson at the unit outcome it covers (first and last lessons cover them all).
   function sequence(unit) {
     const total = unit.weeks * unit.classesPerWeek;
-    const outcomes = unit.outcomes.length ? unit.outcomes : ["(add learning outcomes)"];
+    const outcomes = unit.outcomes && unit.outcomes.length ? unit.outcomes : ["(add unit learning outcomes)"];
+    const all = outcomes.map((_, n) => `LO${n + 1}`);
     const seq = [];
     let i = 0;
     for (let w = 1; w <= unit.weeks; w++) {
       for (let c = 1; c <= unit.classesPerWeek; c++, i++) {
-        const outcome = (i === 0 || i === total - 1) ? "All unit outcomes" : outcomes[(i - 1) % outcomes.length];
-        seq.push({ week: w, cls: c, focus: stageFor(i, total), outcome });
+        const [name, focus] = stageFor(i, total);
+        const first = i === 0, last = i === total - 1;
+        const n = (i - 1) % outcomes.length;
+        seq.push({
+          week: w, cls: c, code: "", name, focus,
+          los: first || last ? all : [all[n]],
+          outcome: first ? "Show what I can already do towards the unit outcomes"
+            : last ? "Demonstrate the unit outcomes in the summative task" : outcomes[n],
+          keyConcept: pick(unit.keyConcepts, i), lp: pick(unit.lp, i), atl: pick(unit.atl, i),
+          assessment: first ? "Formative: diagnostic task" : last ? "Summative: performance task & reflection" : FORMATIVE[(i - 1) % 3],
+        });
       }
     }
     return seq;

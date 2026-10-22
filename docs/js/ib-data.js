@@ -2,9 +2,11 @@
 // These are framework *labels* only. Paste your own licensed PSPE scope-and-sequence
 // outcomes into the Learning Outcomes box (or ingest them into the RAG knowledge base).
 window.IB = {
-  strands: ["Identity", "Active living", "Interactions"],
-
-  phases: ["Phase 1", "Phase 2", "Phase 3", "Phase 4"],
+  // PYP transdisciplinary themes (official IB titles).
+  themes: [
+    "Who we are", "Where we are in place and time", "How we express ourselves",
+    "How the world works", "How we organize ourselves", "Sharing the planet",
+  ],
 
   grades: ["KG1", "KG2", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"],
 
