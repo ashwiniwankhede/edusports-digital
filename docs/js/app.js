@@ -272,10 +272,15 @@
       const u = selUnit();
       if (!u) return toast("Build a unit plan first, or switch to Direct prompt.", true);
       const s = seqEntry();
+      // The lesson's whole timeline column, plus its neighbours for continuity.
+      const i = s ? u.sequence.indexOf(s) : -1;
+      const brief = (x) => x && [x.name, x.focus, x.outcome].filter(Boolean).join(" — ");
       req = {
         mode: "unit", unit: unitInputs(u),
         week: +$("#lessonWeekSel").value, cls: +$("#lessonClassSel").value,
         focus: $("#lessonFocus").value.trim(), outcome: s?.outcome || "",
+        plan: s ? { code: s.code, name: s.name, los: s.los, keyConcept: s.keyConcept, lp: s.lp, atl: s.atl, assessment: s.assessment } : {},
+        prev: brief(u.sequence[i - 1]) || "", next: (i >= 0 && brief(u.sequence[i + 1])) || "",
         minutes: u.minutesPerClass,
       };
     } else {

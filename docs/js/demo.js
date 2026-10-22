@@ -53,17 +53,19 @@ window.Demo = (() => {
     const minutes = Number(req.minutes || u.minutesPerClass || 40);
     const [w, s, m, c] = split(minutes);
     const focus = req.focus || req.prompt || "Movement skills";
+    const p = req.plan || {}; // the lesson's timeline column (unit mode)
     return {
-      title: req.mode === "unit" ? `${u.title || "Unit"} — Week ${req.week}, Class ${req.cls}` : focus.slice(0, 80),
+      title: req.mode === "unit" ? p.name || `${u.title || "Unit"} — Week ${req.week}, Class ${req.cls}` : focus.slice(0, 80),
+      lesson_code: p.code || "",
       grade: u.grade || req.grade || "",
       duration_min: minutes,
       unit_title: u.title || "",
       focus,
-      learning_intentions: [`We are exploring: ${focus}`],
+      learning_intentions: [req.outcome || `We are exploring: ${focus}`],
       success_criteria: ["I can describe what good technique looks like", "I can show it in practice", "I can give a peer one piece of useful feedback"],
-      key_concepts: u.keyConcepts || [],
-      atl: (u.atl || []).slice(0, 2),
-      learner_profile: (u.lp || []).slice(0, 2),
+      key_concepts: p.keyConcept ? [p.keyConcept] : u.keyConcepts || [],
+      atl: p.atl ? [p.atl] : (u.atl || []).slice(0, 2),
+      learner_profile: p.lp ? [p.lp] : (u.lp || []).slice(0, 2),
       equipment: u.facilities ? [u.facilities] : ["Cones", "Bean bags", "Hoops"],
       space_setup: "Mark a safe working area with cones, 2 m clear of walls and obstacles.",
       safety_and_safeguarding: [
@@ -78,7 +80,7 @@ window.Demo = (() => {
         { name: "Cool-down & reflection", minutes: c, activity: "Stretch, then think–pair–share against the success criteria.", organisation: "Circle", teaching_points: ["Link back to the central idea"], differentiation: { support: "Sentence starters", extend: "Set a personal next step" } },
       ],
       inquiry_questions: ["What helped you stay in control?", "How could you change the task to make it harder?"],
-      assessment: { strategy: "Teacher observation against success criteria", evidence: "Checklist notes for 4–6 focus students" },
+      assessment: { strategy: p.assessment || "Teacher observation against success criteria", evidence: "Checklist notes for 4–6 focus students" },
       teacher_notes: "Demo template — connect the AI backend for a fully tailored plan.",
       sources: [],
     };

@@ -1,6 +1,6 @@
 import { callJSON } from "./llm.js";
 import { checkInput, checkOutput, ruleCheck, redactDeep } from "./guardrails.js";
-import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS } from "./prompts.js";
+import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan } from "./prompts.js";
 import { retrieve, ingestChunks, deleteSource, listSources, chunkText } from "./rag.js";
 import { ipHash, logEvent, overLimit, stats, exportEvents } from "./analytics.js";
 
@@ -129,7 +129,7 @@ export default {
       }
       const lesson = checked.lesson;
       lesson.duration_min ||= req.minutes;
-      if (req.mode === "unit") { lesson.unit_title ||= req.unit.title; lesson.grade ||= req.unit.grade; }
+      if (req.mode === "unit") { lesson.unit_title ||= req.unit.title; lesson.grade ||= req.unit.grade; applyPlan(lesson, req.plan); }
       lesson.sources = [...new Map(chunks.map((c) => [c.source, { source: c.source, score: Number(c.score.toFixed(3)) }])).values()];
 
       ctx.waitUntil(logEvent(env, { type: "lesson_generated", anonId, ipHash: ip, payload: {
@@ -185,8 +185,12 @@ function validateLesson(b = {}) {
   const common = { extra: str(b.extra, 500), useRag: b.useRag !== false };
   if (b.mode === "unit") {
     const unit = validateUnit(b.unit);
+    const p = b.plan || {};
+    const plan = { code: str(p.code, 40), name: str(p.name, 120), los: arr(p.los, 10, 8), keyConcept: str(p.keyConcept, 80),
+      lp: str(p.lp, 80), atl: str(p.atl, 160), assessment: str(p.assessment) };
     return { mode: "unit", unit, week: clamp(b.week, 1, unit.weeks, 1), cls: clamp(b.cls, 1, unit.classesPerWeek, 1),
-      focus: str(b.focus, 300), outcome: str(b.outcome, 400), minutes: unit.minutesPerClass, ...common };
+      focus: str(b.focus, 300), outcome: str(b.outcome, 400), plan, prev: str(b.prev, 400), next: str(b.next, 400),
+      minutes: unit.minutesPerClass, ...common };
   }
   const prompt = str(b.prompt, 2000).trim();
   if (prompt.length < 10) throw httpError(400, "Please describe the lesson you want.");

@@ -127,7 +127,7 @@ window.Render = (() => {
 
     return `<article class="doc">
       <h1>${esc(l.title)}</h1>
-      <div class="meta">IB PYP · PSPE lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
+      <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}IB PYP · PSPE lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
 
       <dl class="kv">
         <dt>Focus</dt><dd>${esc(l.focus)}</dd>
