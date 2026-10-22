@@ -174,7 +174,37 @@ function unitSummary(u) {
     lines("Success criteria — Skills", u.skills),
     u.assessWhat || u.assessHow || u.assessWhen
       ? `Assessment: what — ${u.assessWhat || "—"} | how — ${u.assessHow || "—"} | when — ${u.assessWhen || "—"}` : null,
+    u.ratLearning || u.ratWhyPE || u.ratBehaviours
+      ? `Unit rationale: main learning — ${u.ratLearning || "—"} | why PE — ${u.ratWhyPE || "—"} | behaviours and skills developed — ${u.ratBehaviours || "—"}` : null,
   ].filter(Boolean).join("\n");
+}
+
+// Make a generated unit lesson match its timeline column: same name and code, and the
+// planned key concept / Learner Profile / ATL always listed first.
+export function applyPlan(lesson, plan = {}) {
+  if (plan.name) lesson.title = plan.name;
+  if (plan.code) lesson.lesson_code = plan.code;
+  const ensure = (key, value) => {
+    if (!value) return;
+    const list = Array.isArray(lesson[key]) ? lesson[key] : [];
+    lesson[key] = [value, ...list.filter((x) => String(x).toLowerCase() !== value.toLowerCase())];
+  };
+  ensure("key_concepts", plan.keyConcept); ensure("learner_profile", plan.lp); ensure("atl", plan.atl);
+  return lesson;
+}
+
+// The lesson's column in the unit timeline. Planned choices are binding; blanks are left to the model.
+function plannedLesson(req) {
+  const p = req.plan || {};
+  const out = [];
+  if (p.code || p.name) out.push(`Lesson in the unit timeline: ${[p.code, p.name].filter(Boolean).join(" — ")}`);
+  const fixed = [p.keyConcept && `key concept: ${p.keyConcept}`, p.lp && `Learner Profile attribute: ${p.lp}`, p.atl && `ATL skill: ${p.atl}`].filter(Boolean);
+  if (fixed.length) out.push(`Planned for this lesson — use exactly these, and say how the activities develop them: ${fixed.join("; ")}.`);
+  if (!p.lp || !p.atl) out.push(`Pick ${[!p.atl && "1–2 of the unit's ATL skills", !p.lp && "1–2 of its Learner Profile attributes"].filter(Boolean).join(" and ")} most relevant to this lesson.`);
+  if (p.assessment) out.push(`Planned assessment: ${p.assessment}. Build the lesson's assessment strategy and evidence around it.`);
+  if (req.prev) out.push(`Previous lesson: ${req.prev}. Build on it.`);
+  if (req.next) out.push(`Next lesson: ${req.next}. Prepare students for it.`);
+  return out;
 }
 
 export function lessonPrompt(req, chunks) {
@@ -187,9 +217,9 @@ export function lessonPrompt(req, chunks) {
       "",
       `Write the lesson plan for Week ${req.week}, Class ${req.cls} (lesson ${n} of ${total}).`,
       `Class focus: ${req.focus || "choose an appropriate focus for this point in the unit"}`,
-      `Lesson learning outcome: ${req.outcome || "derive one from the unit learning outcomes"}`,
+      `Lesson learning outcome${req.plan?.los?.length ? ` (${req.plan.los.join(", ")})` : ""}: ${req.outcome || "derive one from the unit learning outcomes"}`,
       `Duration: ${req.unit.minutesPerClass} minutes.`,
-      "Pick 1–2 of the unit's ATL skills and Learner Profile attributes most relevant to this lesson.",
+      ...plannedLesson(req),
     ].join("\n");
   } else {
     task = [
