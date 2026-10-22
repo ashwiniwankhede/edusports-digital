@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PSPE Planner</title>
-  <meta name="description" content="IB PYP PSPE unit plan and AI lesson plan builder">
+  <title>EduSports Digital</title>
+  <meta name="description" content="EduSports Digital unit plan and AI lesson plan builder">
   <link rel="icon" href="assets/sv-wordmark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,6 @@
     <button class="sb-collapse" id="sbCollapse" type="button" aria-label="Collapse menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
     </button>
-    <div class="sb-section">PSPE Planner</div>
     <nav class="sb-nav" role="tablist">
       <button class="tab active" data-tab="unit" role="tab" title="Unit Plan Builder">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 17h6"/></svg>
@@ -41,7 +40,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
     </button>
     <div class="topbar-title" id="topbarTitle">Unit Plan Builder</div>
-    <span class="role-chip" id="brandProduct">PSPE Planner</span>
+    <span class="role-chip" id="brandProduct">EduSports Digital</span>
   </header>
 
   <div class="banner no-print" id="demoBanner" hidden>
@@ -50,7 +49,6 @@
 
   <main class="layout no-print">
     <div class="hero">
-      <div class="eyebrow">IB PYP · PSPE</div>
       <h1 id="heroTitle">Unit Plan Builder</h1>
       <p id="heroSub">Follows the PSPE / PE planning template. Fill in the unit, then build its timeline lesson by lesson.</p>
     </div>
@@ -64,10 +62,9 @@
       <form id="unitForm" class="form" autocomplete="off">
         <div class="sec">
           <h2>Unit details</h2>
-          <div class="grid g4">
+          <div class="grid g3">
             <label>Grade<select name="grade" id="gradeSel" required></select></label>
             <label>Unit #<input name="unitNo" required placeholder="e.g. 3"></label>
-            <label>Date<input type="date" name="date"></label>
             <label>Name <span class="hint">optional · stays in this browser</span><input name="name" placeholder="Teacher name"></label>
           </div>
           <div class="grid g2">
@@ -77,7 +74,7 @@
         </div>
 
         <div class="sec">
-          <h2><span class="num">1</span>The unit of inquiry</h2>
+          <h2>The unit of inquiry</h2>
           <p class="sub">What is being focussed on in each layer?</p>
           <label>Transdisciplinary theme<select name="theme" id="themeSel" required></select></label>
           <label>Central idea<textarea name="centralIdea" rows="2" required placeholder="e.g. Our bodies grow and change, and the choices we make help keep them healthy"></textarea></label>
@@ -92,6 +89,20 @@
           <h2>Unit learning outcomes</h2>
           <p class="sub">Generic outcomes for the whole unit, one per line. They are numbered LO1, LO2… and the AI expands them into a learning outcome for each lesson.</p>
           <textarea name="outcomes" rows="4" required placeholder="e.g. Balance on different body parts with control"></textarea>
+        </div>
+
+        <div class="sec">
+          <h2>Schedule &amp; class profile</h2>
+          <p class="sub">Used to build the timeline and the lesson plans.</p>
+          <div class="grid g3">
+            <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
+            <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
+            <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
+            <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
+            <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
+            <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
+          </div>
+          <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
         </div>
 
         <p class="ai-note">The sections below are optional. Anything left blank is drafted by <b>Build + draft with AI</b>; what you type is never changed.</p>
@@ -142,19 +153,7 @@
         </div>
 
         <div class="sec">
-          <h2>Schedule &amp; class profile</h2>
-          <p class="sub">Used to build the timeline and the lesson plans.</p>
-          <div class="grid g3">
-            <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
-            <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
-            <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
-            <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
-            <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
-            <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
-          </div>
-          <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
-
-          <div class="actions">
+          <div class="actions" style="margin-top:0">
             <button type="submit" class="btn primary">Build unit plan</button>
             <button type="button" class="btn" id="aiSequenceBtn">Build + draft with AI</button>
             <button type="reset" class="btn ghost">Clear</button>

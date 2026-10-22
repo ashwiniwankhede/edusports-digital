@@ -1,4 +1,4 @@
-# PSPE Planner — notes for Claude Code
+# EduSports Digital — notes for Claude Code
 
 No-login IB PYP PSPE planning tool for Sportz Village / EduSports Digital.
 Static site on GitHub Pages (`/docs`) + Cloudflare Worker API (`/worker`).
