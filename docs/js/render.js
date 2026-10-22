@@ -8,8 +8,18 @@ window.Render = (() => {
   const ul = (arr) => (arr && arr.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const joined = (arr, sep = ", ") => esc((arr || []).join(sep));
   const fact = (label, value, cls = "") => `<div class="${cls}"><span>${label}</span>${value || "—"}</div>`;
-  const ukDate = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || "") ? iso.split("-").reverse().join("/") : esc(iso));
-  const PER_PAGE = 8; // timeline columns per landscape page
+  const today = () => new Date().toLocaleDateString("en-GB"); // dd/mm/yyyy — the plan always shows the day it is viewed or printed
+  const MAX_COLS = 8; // timeline columns that fit on a landscape page
+
+  // Split the timeline week by week into the fewest pages of ≤ MAX_COLS columns, with the
+  // same number of weeks — so the same number of columns — on every page.
+  // e.g. 6 weeks × 2 → 2 pages of 3 weeks (6 columns); 5 weeks × 2 → 3 + 2 weeks, last page padded.
+  function timelineLayout(weeks, perWeek) {
+    const maxWeeks = Math.max(1, Math.floor(MAX_COLS / Math.max(1, perWeek)));
+    const pages = Math.ceil(weeks / maxWeeks);
+    const weeksPerPage = Math.ceil(weeks / pages);
+    return { pages, weeksPerPage, cols: weeksPerPage * perWeek };
+  }
 
   // An answer block: text, or blank ruled lines on paper when empty. Editable on screen when `field` is set.
   function answer(text, editable, field) {
@@ -32,17 +42,19 @@ window.Render = (() => {
       ["Approaches to learning", (s, i) => cell(i, "atl", s.atl)],
       ["Formative/ summative assessment", (s, i) => cell(i, "assessment", s.assessment)],
     ];
+    const { cols } = timelineLayout(u.weeks || 1, u.classesPerWeek || 1);
     const pages = [];
-    for (let start = 0; start < seq.length; start += PER_PAGE) {
-      const part = seq.slice(start, start + PER_PAGE);
-      const title = seq.length > PER_PAGE ? `Unit time line: lessons ${start + 1}–${start + part.length} of ${seq.length}` : "Unit time line:";
-      const head = part.map((s, j) => `<th>W${s.week} / L${start + j + 1}</th>`).join("");
-      const body = ROWS.map(([label, fn]) => `<tr><th class="rowh">${label}</th>${part.map((s, j) => `<td>${fn(s, start + j)}</td>`).join("")}</tr>`).join("");
+    for (let start = 0; start < seq.length; start += cols) {
+      const part = seq.slice(start, start + cols);
+      const pad = (html) => html.repeat(cols - part.length); // blank columns keep every page the same width
+      const title = seq.length > cols ? `Unit time line: weeks ${part[0].week}–${part[part.length - 1].week} of ${u.weeks}` : "Unit time line:";
+      const head = part.map((s, j) => `<th>W${s.week} / L${start + j + 1}</th>`).join("") + pad("<th></th>");
+      const body = ROWS.map(([label, fn]) => `<tr><th class="rowh">${label}</th>${part.map((s, j) => `<td>${fn(s, start + j)}</td>`).join("")}${pad("<td></td>")}</tr>`).join("");
       const buttons = editable ? `<tr class="no-print-inline"><th class="rowh">Lesson plan</th>${part.map((s, j) => {
         const idx = start + j, lessonId = s.lessonId && Store.getLesson(s.lessonId) ? s.lessonId : "";
         return `<td>${lessonId ? `<button class="btn sm" data-open-lesson="${lessonId}">Open</button> ` : ""}<button class="btn sm" data-gen-lesson="${idx}">${lessonId ? "Regenerate" : "Generate"}</button></td>`;
-      }).join("")}</tr>` : "";
-      pages.push(`<table class="tl pb"><thead><tr class="band"><th colspan="${part.length + 1}">${title}</th></tr>
+      }).join("")}${pad("<td></td>")}</tr>` : "";
+      pages.push(`<table class="tl pb"><thead><tr class="band"><th colspan="${cols + 1}">${title}</th></tr>
         <tr><th class="rowh">Week/ Lesson #</th>${head}</tr></thead><tbody>${body}${buttons}</tbody></table>`);
     }
     return pages.join("");
@@ -58,7 +70,7 @@ window.Render = (() => {
       <h1>${esc(u.grade)} Unit Planner</h1>
       <div class="facts">
         ${fact("Grade", esc(u.grade))}${fact("Unit #", esc(u.unitNo))}${fact("Unit title", esc(u.title), "w2")}
-        ${fact("Date", ukDate(u.date))}${fact("Duration", `${u.weeks} weeks × ${u.classesPerWeek} classes × ${u.minutesPerClass} min (${total} lessons)`)}
+        ${fact("Date", today())}${fact("Duration", `${u.weeks} weeks × ${u.classesPerWeek} classes × ${u.minutesPerClass} min (${total} lessons)`)}
         ${fact("Movement context", esc(u.context), "w2")}
         ${fact("Class profile", students ? `${students} students (${u.boys || 0} boys, ${u.girls || 0} girls)` : "")}
         ${u.name ? fact("Name", esc(u.name), "w3") : ""}
@@ -127,7 +139,7 @@ window.Render = (() => {
 
     return `<article class="doc">
       <h1>${esc(l.title)}</h1>
-      <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}IB PYP · PSPE lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
+      <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}Lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
 
       <dl class="kv">
         <dt>Focus</dt><dd>${esc(l.focus)}</dd>
@@ -141,8 +153,6 @@ window.Render = (() => {
       <h4>Learning intentions</h4>${list(l.learning_intentions)}
       <h4>Success criteria</h4>${list(l.success_criteria)}
 
-      <h4>Safety &amp; safeguarding</h4><div class="safety">${list(l.safety_and_safeguarding)}</div>
-
       <h4>Lesson sequence <span class="hint">(${total} min)</span></h4>
       <table><thead><tr><th style="width:16%">Phase</th><th>Activity</th><th style="width:24%">Teaching points</th><th style="width:24%">Differentiation</th></tr></thead>
       <tbody>${phases}</tbody></table>
@@ -152,8 +162,10 @@ window.Render = (() => {
       <dl class="kv"><dt>Strategy</dt><dd>${esc(l.assessment?.strategy) || "—"}</dd><dt>Evidence</dt><dd>${esc(l.assessment?.evidence) || "—"}</dd></dl>
       ${l.teacher_notes ? `<h4>Teacher notes</h4><p>${esc(l.teacher_notes)}</p>` : ""}
       ${l.sources && l.sources.length ? `<h4>Sources (knowledge base)</h4><div class="sources">${list(l.sources.map((s) => s.source))}</div>` : ""}
+
+      <h4>Safety &amp; safeguarding</h4><div class="safety">${list(l.safety_and_safeguarding)}</div>
     </article>`;
   }
 
-  return { esc, unit, lesson };
+  return { esc, unit, lesson, timelineLayout };
 })();

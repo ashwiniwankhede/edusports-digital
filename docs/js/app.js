@@ -66,12 +66,11 @@
   uf.girls.addEventListener("input", updateRatio);
 
   // Form inputs are named after the unit fields they hold.
-  const TEXT_FIELDS = ["grade", "unitNo", "date", "name", "title", "context", "theme", "centralIdea", "additionalConcepts", "facilities",
+  const TEXT_FIELDS = ["grade", "unitNo", "name", "title", "context", "theme", "centralIdea", "additionalConcepts", "facilities",
     "tdConcepts", "assessWhat", "assessHow", "assessWhen", "ratLearning", "ratWhyPE", "ratBehaviours"];
   const LIST_FIELDS = ["linesOfInquiry", "outcomes", "sloMovement", "sloWellness", "sloInteractions", "sloIdentity", "knowledge", "understandings", "skills"];
   const NUM_FIELDS = ["weeks", "classesPerWeek", "minutesPerClass", "boys", "girls"];
   const CHIP_FIELDS = ["keyConcepts", "atl", "lp"];
-  const today = () => new Date().toISOString().slice(0, 10);
 
   function readUnit() {
     const u = { v: 2, sequence: [] };
@@ -165,7 +164,7 @@
     } finally { busy(btn, false); }
   });
 
-  uf.addEventListener("reset", () => setTimeout(() => { uf.date.value = today(); updateRatio(); setEditing(null); }));
+  uf.addEventListener("reset", () => setTimeout(() => { updateRatio(); setEditing(null); }));
   $("#newUnitBtn").addEventListener("click", () => { uf.reset(); $("#unitOut").hidden = true; currentUnit = null; window.scrollTo({ top: 0 }); });
 
   // e.g. "Grade 1" → G1, "KG2" → KG2
@@ -340,7 +339,7 @@
   $("#exportBtn").addEventListener("click", () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([Store.exportAll()], { type: "application/json" }));
-    a.download = `pspe-plans-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `edusports-digital-plans-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
   });
   $("#importInput").addEventListener("change", async (e) => {
@@ -357,7 +356,7 @@
     $("#printWm").style.opacity = C.WATERMARK_OPACITY;
     $("#printLogo").src = C.WATERMARK_URL;
     $("#printCompany").textContent = C.COMPANY_NAME;
-    $("#printDate").textContent = new Date().toLocaleDateString();
+    $("#printDate").textContent = new Date().toLocaleDateString("en-GB");
     $("#printFoot").textContent = C.FOOTER_TEXT;
     $("#printBody").innerHTML = html;
     const prevTitle = document.title;
@@ -369,7 +368,6 @@
     if (img.complete) window.print(); else { img.onload = img.onerror = () => window.print(); }
   }
 
-  uf.date.value = today();
   updateRatio();
   setMode("unit");
   refreshLessonUnitSelect();

@@ -1,4 +1,4 @@
-# PSPE Planner
+# EduSports Digital
 
 No-login IB PYP PSPE planning tool: **Unit Plan Builder → AI Lesson Plan Builder → watermarked print/PDF**, with anonymous usage analytics, child-safety guardrails and a document knowledge base (RAG).
 
