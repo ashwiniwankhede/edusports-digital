@@ -33,27 +33,51 @@ window.Diagram = (() => {
     return out;
   }
 
-  // Text layout → { area, zones, items, arrows }. One command per line (also accepts " / " or ";"
-  // between commands); lines that can't be read are skipped.
+  // Text layout → { area, zones, items, arrows }. One command per line. Forgiving on purpose, since
+  // the model's text varies: also splits on " / ", ";", "|" and a literal "\n"; ignores bullets,
+  // commas, units ("1.5m"), "20x12", "x=10"; knows common synonyms. Unreadable lines are skipped.
+  const SYN = { students: "group", kids: "group", children: "group", players: "group", class: "group", team: "group",
+    player: "student", child: "student", kid: "student", coach: "teacher", cones: "cone", mats: "mat", hoops: "hoop",
+    balls: "ball", benches: "bench", goals: "goal", aid: "first_aid", firstaid: "first_aid", "first-aid": "first_aid",
+    first_aid_kit: "first_aid", kit: "first_aid", station: "zone", stations: "zone", zones: "zone", grid: "zone", grids: "zone", arrows: "arrow", hall: "area", space: "area", court: "area", field: "area" };
+  const SHAPES = ["scatter", "line", "pairs", "circle"];
+  const isNum = (s) => /^-?\d+(\.\d+)?$/.test(s);
   function parse(text) {
     const spec = { area: null, zones: [], items: [], arrows: [] };
     const SIMPLE = ["teacher", "cone", "ball", "hoop", "water", "first_aid"];
-    for (const raw of String(text).split(/\n|\s\/\s|;/)) {
-      const t = raw.trim().split(/\s+/), cmd = (t[0] || "").toLowerCase().replace(/^aid$/, "first_aid"), v = t.slice(1).map(Number);
-      const ok = (k) => v.slice(0, k).length === k && v.slice(0, k).every(Number.isFinite);
-      const team = (s) => (/^[ABCD]$/i.test(s || "") ? s.toUpperCase() : "");
+    const src = String(text).replace(/\\n/g, "\n");
+    for (const raw of src.split(/\r?\n|\s\/\s|;|\|/)) {
+      const line = raw.trim().replace(/^([-*•]|\d+[.)])\s+/, "")
+        .replace(/(\d)\s*[x×]\s*(\d)/gi, "$1 $2").replace(/[,()]/g, " ").replace(/\b[a-z]+=/gi, "")
+        .replace(/(\d)\s*m\b/gi, "$1");
+      const t = line.split(/\s+/).filter(Boolean);
+      if (!t.length) continue;
+      let cmd = t[0].toLowerCase();
+      cmd = SYN[cmd] || cmd;
+      let rest = t.slice(1);
+      let kind = "move";
+      if (["move", "pass", "rotate"].includes(cmd)) { kind = cmd; cmd = "arrow"; }
+      else if (cmd === "arrow" && rest[0] && !isNum(rest[0])) kind = rest.shift().toLowerCase();
+      // Take the first k numbers in order; the words after the k-th number are the label.
+      const take = (k) => {
+        const nums = []; let i = 0;
+        for (; i < rest.length && nums.length < k; i++) if (isNum(rest[i])) nums.push(+rest[i]);
+        return { nums, after: rest.slice(i) };
+      };
+      const words = rest.filter((w) => !isNum(w)).map((w) => w.toLowerCase());
+      const team = (words.find((w) => /^[abcd]$/.test(w)) || "").toUpperCase();
       const item = (type, o) => ({ type, w: 0, h: 0, n: 0, shape: "none", team: "", ...o });
-      if (cmd === "area" && ok(2)) spec.area = { w: v[0], h: v[1], label: t.slice(3).join(" ") };
-      else if (cmd === "zone" && ok(4)) spec.zones.push({ x: v[0], y: v[1], w: v[2], h: v[3], label: t.slice(5).join(" ") });
-      else if (cmd === "group" && ok(5)) spec.items.push(item("group", { x: v[0], y: v[1], w: v[2], h: v[3], n: v[4], shape: (t[6] || "scatter").toLowerCase(), team: team(t[7]) }));
-      else if (cmd === "student" && ok(2)) spec.items.push(item("student", { x: v[0], y: v[1], team: team(t[3]) }));
-      else if ((cmd === "mat" || cmd === "goal") && ok(2)) spec.items.push(item(cmd, { x: v[0], y: v[1], w: v[2] || 0, h: v[3] || 0 }));
-      else if (cmd === "bench" && ok(2)) spec.items.push(item("bench", { x: v[0], y: v[1], w: v[2] || 0 }));
-      else if (SIMPLE.includes(cmd) && ok(2)) spec.items.push(item(cmd, { x: v[0], y: v[1] }));
-      else if (cmd === "arrow" && t.length >= 6) {
-        const n = t.slice(2, 6).map(Number);
-        if (n.every(Number.isFinite)) spec.arrows.push({ kind: (t[1] || "move").toLowerCase(), from_x: n[0], from_y: n[1], to_x: n[2], to_y: n[3] });
+      if (cmd === "area") { const { nums, after } = take(2); if (nums.length === 2) spec.area = { w: nums[0], h: nums[1], label: after.join(" ") }; }
+      else if (cmd === "zone") { const { nums, after } = take(4); if (nums.length === 4) spec.zones.push({ x: nums[0], y: nums[1], w: nums[2], h: nums[3], label: after.join(" ") }); }
+      else if (cmd === "group") {
+        const { nums } = take(5);
+        if (nums.length >= 2) spec.items.push(item("group", { x: nums[0], y: nums[1], w: nums[2] || 0, h: nums[3] || 0, n: nums[4] || 6,
+          shape: words.find((w) => SHAPES.includes(w)) || "scatter", team }));
       }
+      else if (cmd === "student") { const { nums } = take(2); if (nums.length === 2) spec.items.push(item("student", { x: nums[0], y: nums[1], team })); }
+      else if (cmd === "mat" || cmd === "goal" || cmd === "bench") { const { nums } = take(4); if (nums.length >= 2) spec.items.push(item(cmd, { x: nums[0], y: nums[1], w: nums[2] || 0, h: nums[3] || 0 })); }
+      else if (SIMPLE.includes(cmd)) { const { nums } = take(2); if (nums.length === 2) spec.items.push(item(cmd, { x: nums[0], y: nums[1] })); }
+      else if (cmd === "arrow") { const { nums } = take(4); if (nums.length === 4) spec.arrows.push({ kind, from_x: nums[0], from_y: nums[1], to_x: nums[2], to_y: nums[3] }); }
     }
     if (!spec.area && (spec.items.length || spec.zones.length)) spec.area = { w: 20, h: 12, label: "" };
     return spec;
