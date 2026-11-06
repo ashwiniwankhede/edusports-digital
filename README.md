@@ -115,7 +115,7 @@ lessons at once (update the version line at the bottom). Lesson plans themselves
 lesson-specific safety points.
 
 The QR image is `docs/assets/common-qr.svg` and encodes
-`https://ashwiniwankhede.github.io/pspe-planner/common.html`. If the site address changes (repository
+`https://ashwiniwankhede.github.io/edusports-digital/common.html`. If the site address changes (repository
 rename or custom domain), regenerate it, e.g. with Python:
 `pip install qrcode && python -c "import qrcode, qrcode.image.svg as s; qrcode.make('<new address>/common.html', image_factory=s.SvgPathImage, border=1).save('docs/assets/common-qr.svg')"`
 
