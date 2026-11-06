@@ -250,17 +250,24 @@
   $("#lessonWeekSel").addEventListener("change", fillClass);
   $("#lessonClassSel").addEventListener("change", fillFocus);
 
-  let currentLesson = null;
-  function showLesson(l) {
+  // Full plan or its short Abstract; Print prints whichever view is showing.
+  let currentLesson = null, lessonView = "full";
+  function showLesson(l, { scroll = true } = {}) {
     if (!l) return;
     currentLesson = l;
     const out = $("#lessonOut");
     out.hidden = false;
-    out.innerHTML = `<div class="out-bar"><button class="btn" data-act="print-lesson">Print / PDF</button></div>${Render.lesson(l)}`;
-    out.scrollIntoView({ behavior: "smooth", block: "start" });
+    const seg = (v, label) => `<button class="seg-btn${lessonView === v ? " active" : ""}" data-view="${v}">${label}</button>`;
+    out.innerHTML = `<div class="out-bar lesson-bar"><div class="seg" role="radiogroup">${seg("full", "Full plan")}${seg("abstract", "Abstract")}</div>
+      <button class="btn" data-act="print-lesson">Print / PDF</button></div>${Render.lesson(l, { view: lessonView })}`;
+    if (scroll) out.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   $("#lessonOut").addEventListener("click", (e) => {
-    if (e.target.closest("[data-act=print-lesson]")) printDoc(Render.lesson(currentLesson), currentLesson.title);
+    const v = e.target.closest("[data-view]");
+    if (v) { lessonView = v.dataset.view; showLesson(currentLesson, { scroll: false }); }
+    if (e.target.closest("[data-act=print-lesson]")) {
+      printDoc(Render.lesson(currentLesson, { view: lessonView }), `${currentLesson.title}${lessonView === "abstract" ? " (abstract)" : ""}`);
+    }
   });
 
   $("#lessonForm").addEventListener("submit", async (e) => {

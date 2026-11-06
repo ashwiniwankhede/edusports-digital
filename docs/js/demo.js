@@ -48,12 +48,29 @@ window.Demo = (() => {
     return [warm, skill, main, cool];
   }
 
+  // Template diagrams for a 20 × 12 m hall (same layout data the AI returns; drawn by diagram.js).
+  const HALL = { w: 20, h: 12, label: "Indoor hall" };
+  const it = (type, x, y, o = {}) => ({ type, x, y, w: 0, h: 0, n: 0, shape: "none", team: "", ...o });
+  const corners = [[1.5, 1.5], [18.5, 1.5], [1.5, 10.5], [18.5, 10.5], [10, 1.5], [10, 10.5]].map(([x, y]) => it("cone", x, y));
+  const D = {
+    setup: { area: HALL, zones: [], arrows: [], items: [...corners, it("teacher", 10, 11), it("water", 1, 6), it("first_aid", 1, 7.5)] },
+    warm: (n) => ({ area: HALL, zones: [], items: [...corners, it("group", 10, 6, { w: 15, h: 7, n, shape: "scatter" }), it("teacher", 10, 11)],
+      arrows: [{ from_x: 5, from_y: 4, to_x: 8, to_y: 3, kind: "move" }, { from_x: 14, from_y: 8, to_x: 16, to_y: 6, kind: "move" }] }),
+    pairs: (n) => ({ area: HALL, zones: [], arrows: [], items: [it("group", 10, 4, { w: 14, h: 2.5, n: Math.ceil(n / 2), shape: "pairs", team: "A" }),
+      it("group", 10, 8, { w: 14, h: 2.5, n: Math.floor(n / 2), shape: "pairs", team: "B" }), it("teacher", 10, 11)] }),
+    groups: (n) => ({ area: HALL, arrows: [{ from_x: 9.3, from_y: 3, to_x: 10.7, to_y: 3, kind: "rotate" }, { from_x: 10.7, from_y: 9, to_x: 9.3, to_y: 9, kind: "rotate" }],
+      zones: [[1, 1, "1"], [11, 1, "2"], [11, 6.5, "3"], [1, 6.5, "4"]].map(([x, y, label]) => ({ x, y, w: 8, h: 4.5, label })),
+      items: [["A", 5, 3.3], ["B", 15, 3.3], ["C", 15, 8.8], ["D", 5, 8.8]].map(([team, x, y]) => it("group", x, y, { w: 6, h: 2, n: Math.ceil(n / 4), shape: "scatter", team })).concat(it("teacher", 10, 6)) }),
+    circle: (n) => ({ area: HALL, zones: [], arrows: [], items: [it("group", 10, 6, { w: 8, h: 8, n, shape: "circle" }), it("teacher", 10, 6)] }),
+  };
+
   function lesson(req) {
     const u = req.unit || {};
     const minutes = Number(req.minutes || u.minutesPerClass || 40);
     const [w, s, m, c] = split(minutes);
     const focus = req.focus || req.prompt || "Movement skills";
     const p = req.plan || {}; // the lesson's timeline column (unit mode)
+    const n = Math.min(30, (u.boys || req.boys || 0) + (u.girls || req.girls || 0)) || 24;
     return {
       title: req.mode === "unit" ? p.name || `${u.title || "Unit"} — Week ${req.week}, Class ${req.cls}` : focus.slice(0, 80),
       lesson_code: p.code || "",
@@ -62,25 +79,27 @@ window.Demo = (() => {
       unit_title: u.title || "",
       focus,
       learning_intentions: [req.outcome || `We are exploring: ${focus}`],
-      success_criteria: ["I can describe what good technique looks like", "I can show it in practice", "I can give a peer one piece of useful feedback"],
+      success_criteria: ["I can show good technique", "I can practise it with control", "I can give a peer useful feedback"],
       key_concepts: p.keyConcept ? [p.keyConcept] : u.keyConcepts || [],
       atl: p.atl ? [p.atl] : (u.atl || []).slice(0, 2),
       learner_profile: p.lp ? [p.lp] : (u.lp || []).slice(0, 2),
-      equipment: u.facilities ? [u.facilities] : ["Cones", "Bean bags", "Hoops"],
-      space_setup: "Mark a safe working area with cones, 2 m clear of walls and obstacles.",
-      safety_and_safeguarding: [
-        "Check the space and equipment before students enter.",
-        "Teacher stays in a position to see every student at all times.",
-        "Any physical support is minimal, explained first, and done in full view of the group.",
-      ],
+      equipment: u.facilities ? [u.facilities] : ["12 cones", "24 bean bags", "12 hoops"],
+      space_setup: "Mark a safe working area with cones, 2 m clear of walls and obstacles. Put water and first aid by the door.",
+      space_setup_points: ["Cone boundary 2 m from walls", "Water and first aid by the door"],
+      space_diagram: D.setup,
+      safety_and_safeguarding: ["Keep 2 m between working pairs", "Clear spare equipment from the floor"],
       phases: [
-        { name: "Warm-up", minutes: w, activity: "Pulse raiser with movement prompts linked to today's focus.", organisation: "Whole class, free space", teaching_points: ["Look up, find space"], differentiation: { support: "Slower pace", extend: "Add direction changes" } },
-        { name: "Skill development", minutes: s, activity: "Guided practice of the focus skill in pairs.", organisation: "Mixed pairs", teaching_points: ["Model, then practise", "One cue at a time"], differentiation: { support: "Larger target / closer distance", extend: "Add a time or accuracy challenge" } },
-        { name: "Main activity", minutes: m, activity: "Small-sided game or task that applies the skill.", organisation: "Mixed groups of 4", teaching_points: ["Apply the cue under pressure"], differentiation: { support: "Fewer rules", extend: "Add a defender / constraint" } },
-        { name: "Cool-down & reflection", minutes: c, activity: "Stretch, then think–pair–share against the success criteria.", organisation: "Circle", teaching_points: ["Link back to the central idea"], differentiation: { support: "Sentence starters", extend: "Set a personal next step" } },
+        { name: "Warm-up", minutes: w, activity: "Students travel in free space using movements linked to today's focus. On the signal they freeze and hold still.", organisation: "Whole class, free space inside the cones.",
+          activity_points: ["Travel in free space", "Freeze and hold on the signal"], teaching_points: ["Look up, find space"], differentiation: { support: "Slower pace", extend: "Add direction changes" }, diagram: D.warm(n) },
+        { name: "Skill development", minutes: s, activity: "In pairs, students practise the focus skill. One partner tries, the other gives one tip, then they swap.", organisation: "Pairs in two rows, facing each other.",
+          activity_points: ["Practise the skill in pairs", "Give one tip, then swap"], teaching_points: ["Model, then practise", "One cue at a time"], differentiation: { support: "Larger target or closer distance", extend: "Add a time or accuracy challenge" }, diagram: D.pairs(n) },
+        { name: "Main activity", minutes: m, activity: "Four groups rotate through stations that apply the skill in a game or task. Groups move on at the signal.", organisation: "4 stations; groups rotate clockwise.",
+          activity_points: ["4 stations, groups rotate", "Apply the skill in a game"], teaching_points: ["Apply the cue under pressure"], differentiation: { support: "Fewer rules", extend: "Add a defender or constraint" }, diagram: D.groups(n) },
+        { name: "Cool-down & reflection", minutes: c, activity: "Slow stretches in a circle, then think–pair–share against the success criteria.", organisation: "Whole class in a circle.",
+          activity_points: ["Stretch in a circle", "Think–pair–share on the criteria"], teaching_points: ["Link back to the central idea"], differentiation: { support: "Sentence starters", extend: "Set a personal next step" }, diagram: D.circle(n) },
       ],
-      inquiry_questions: ["What helped you stay in control?", "How could you change the task to make it harder?"],
-      assessment: { strategy: p.assessment || "Teacher observation against success criteria", evidence: "Checklist notes for 4–6 focus students" },
+      inquiry_questions: ["What helped you stay in control?", "How could you make it harder?"],
+      assessment: { strategy: p.assessment || "Observe focus students against the success criteria", evidence: "Checklist notes for 4–6 students" },
       teacher_notes: "Demo template — connect the AI backend for a fully tailored plan.",
       sources: [],
     };

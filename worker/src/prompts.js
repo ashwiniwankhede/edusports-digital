@@ -23,6 +23,63 @@ export const PEDAGOGY = [
   "Use UK/International English. Be concrete and practical: a teacher should be able to run the lesson from the plan alone.",
 ];
 
+// A space / formation diagram, as data. The site draws it (docs/js/diagram.js); the
+// model never draws pictures. Coordinates are metres from the top-left of the area.
+export const DIAGRAM_SCHEMA = {
+  type: "object",
+  description: "Top-down layout drawn by the site. Keep to ≤ 20 items; use 'group' for students instead of single dots.",
+  properties: {
+    area: {
+      type: "object",
+      properties: {
+        w: { type: "number", description: "width in metres, e.g. 20 for a school hall" },
+        h: { type: "number", description: "depth in metres, e.g. 12" },
+        label: { type: "string", description: "e.g. 'Indoor hall', 'Field', or ''" },
+      },
+      required: ["w", "h", "label"],
+    },
+    zones: {
+      type: "array",
+      description: "dashed areas such as stations or grids; [] if none",
+      items: {
+        type: "object",
+        properties: { x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" }, label: { type: "string", description: "≤ 2 words" } },
+        required: ["x", "y", "w", "h", "label"],
+      },
+    },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["group", "student", "teacher", "cone", "mat", "hoop", "bench", "ball", "goal", "water", "first_aid"] },
+          x: { type: "number", description: "centre x in metres" },
+          y: { type: "number", description: "centre y in metres" },
+          w: { type: "number", description: "width in metres for mat / bench / goal / group; 0 otherwise" },
+          h: { type: "number", description: "depth in metres for mat / goal / group; 0 otherwise" },
+          n: { type: "integer", description: "number of students in a group; 0 otherwise" },
+          shape: { type: "string", enum: ["scatter", "line", "pairs", "circle", "none"], description: "how a group stands; 'none' for other items" },
+          team: { type: "string", enum: ["A", "B", "C", "D", ""], description: "group colour; '' if one team" },
+        },
+        required: ["type", "x", "y", "w", "h", "n", "shape", "team"],
+      },
+    },
+    arrows: {
+      type: "array",
+      description: "movement or rotation; [] if none; ≤ 4",
+      items: {
+        type: "object",
+        properties: {
+          from_x: { type: "number" }, from_y: { type: "number" }, to_x: { type: "number" }, to_y: { type: "number" },
+          kind: { type: "string", enum: ["move", "pass", "rotate"] },
+        },
+        required: ["from_x", "from_y", "to_x", "to_y", "kind"],
+      },
+    },
+  },
+  required: ["area", "zones", "items", "arrows"],
+};
+
 export const LESSON_SCHEMA = {
   type: "object",
   properties: {
@@ -31,14 +88,16 @@ export const LESSON_SCHEMA = {
     duration_min: { type: "integer" },
     unit_title: { type: "string" },
     focus: { type: "string", description: "one-line focus of this lesson" },
-    learning_intentions: { type: "array", items: { type: "string" } },
-    success_criteria: { type: "array", items: { type: "string" }, description: "student-friendly 'I can…' statements" },
+    learning_intentions: { type: "array", items: { type: "string" }, description: "1–2, each ≤ 12 words" },
+    success_criteria: { type: "array", items: { type: "string" }, description: "2–3 student-friendly 'I can…' statements, each ≤ 10 words" },
     key_concepts: { type: "array", items: { type: "string" } },
     atl: { type: "array", items: { type: "string" } },
     learner_profile: { type: "array", items: { type: "string" } },
-    equipment: { type: "array", items: { type: "string" }, description: "with quantities" },
-    space_setup: { type: "string" },
-    safety_and_safeguarding: { type: "array", items: { type: "string" } },
+    equipment: { type: "array", items: { type: "string" }, description: "lesson props with quantities, e.g. '12 gym mats'. Never the teacher's kit (clipboard, class list, first-aid kit, medical information, assessment device): it is listed separately" },
+    space_setup: { type: "string", description: "how to set up the space, ≤ 35 words" },
+    space_setup_points: { type: "array", items: { type: "string" }, description: "the same set-up as 2–3 bullets, each ≤ 8 words" },
+    space_diagram: DIAGRAM_SCHEMA,
+    safety_and_safeguarding: { type: "array", items: { type: "string" }, description: "1–3 points specific to THIS lesson's activities, each ≤ 10 words. General safety and safeguarding live in a shared document: do not repeat them" },
     phases: {
       type: "array",
       items: {
@@ -46,31 +105,41 @@ export const LESSON_SCHEMA = {
         properties: {
           name: { type: "string", description: "e.g. Warm-up, Skill development, Main activity, Cool-down & reflection" },
           minutes: { type: "integer" },
-          activity: { type: "string", description: "clear description of what students do" },
-          organisation: { type: "string", description: "grouping and layout" },
-          teaching_points: { type: "array", items: { type: "string" } },
+          activity: { type: "string", description: "what students do, 2–3 short sentences, ≤ 45 words" },
+          organisation: { type: "string", description: "grouping and layout, ≤ 20 words" },
+          activity_points: { type: "array", items: { type: "string" }, description: "the activity as 2 bullets for the abstract view, each ≤ 12 words" },
+          teaching_points: { type: "array", items: { type: "string" }, description: "2–3 coaching cues the teacher can say aloud, each ≤ 8 words" },
           differentiation: {
             type: "object",
-            properties: { support: { type: "string" }, extend: { type: "string" } },
+            properties: { support: { type: "string", description: "≤ 10 words" }, extend: { type: "string", description: "≤ 10 words" } },
             required: ["support", "extend"],
           },
+          diagram: DIAGRAM_SCHEMA,
         },
-        required: ["name", "minutes", "activity", "organisation", "teaching_points", "differentiation"],
+        required: ["name", "minutes", "activity", "organisation", "activity_points", "teaching_points", "differentiation", "diagram"],
       },
     },
-    inquiry_questions: { type: "array", items: { type: "string" } },
+    inquiry_questions: { type: "array", items: { type: "string" }, description: "2 open questions, each ≤ 10 words" },
     assessment: {
       type: "object",
-      properties: { strategy: { type: "string" }, evidence: { type: "string" } },
+      properties: { strategy: { type: "string", description: "≤ 15 words" }, evidence: { type: "string", description: "≤ 10 words" } },
       required: ["strategy", "evidence"],
     },
-    teacher_notes: { type: "string" },
+    teacher_notes: { type: "string", description: "optional note specific to this lesson, ≤ 20 words; '' if none. General teacher notes live in the shared document" },
   },
   required: [
     "title", "grade", "duration_min", "focus", "learning_intentions", "success_criteria", "atl", "learner_profile",
-    "equipment", "space_setup", "safety_and_safeguarding", "phases", "inquiry_questions", "assessment",
+    "equipment", "space_setup", "space_setup_points", "space_diagram", "safety_and_safeguarding", "phases", "inquiry_questions", "assessment",
   ],
 };
+
+// Format rules for every lesson plan (shared by unit and direct-prompt lessons).
+const LESSON_FORMAT = [
+  "Write briefly: short sentences and bullets, within the word limits given for each field.",
+  "Draw a top-down diagram for the space set-up and for each phase, matching what the text says: the same area, equipment, groups, teacher position and movement. Place everything inside the area, at least 1 m from its edges, without overlaps. Use 'group' items for students (with n and shape) rather than single dots.",
+  "Use the facilities the teacher gave; otherwise assume a 20 × 12 m indoor hall.",
+  "The teacher's kit (clipboard, class list, first-aid kit, medical information, assessment device) and general safety, safeguarding and teacher notes are in a shared document: do not repeat them.",
+].join("\n");
 
 // Unit-plan sections the AI drafts when the teacher leaves them blank (never overwrites).
 // Keys match the unit fields in docs/js/app.js and docs/js/render.js.
@@ -228,6 +297,7 @@ export function lessonPrompt(req, chunks) {
       "Write a complete IB PYP PSPE lesson plan. Choose suitable ATL skills, Learner Profile attributes and key concepts if not given.",
     ].join("\n");
   }
+  task += `\n${LESSON_FORMAT}`;
   if (req.extra) task += `\nAdditional instructions: ${req.extra}`;
   return { system: systemPrompt(), user: knowledgeBlock(chunks) + task };
 }

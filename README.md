@@ -108,6 +108,17 @@ Everything that shapes output is in `worker/src/prompts.js`:
 - `lessonPrompt` / `sequencePrompt` — change how unit context, class position and knowledge are framed.
 - `docs/js/demo.js → stageFor()` — the rule-based unit arc.
 
+## Common safety & teacher notes (QR code)
+Every lesson plan ends with a QR code that opens `docs/common.html`: the teacher's kit, general safety,
+safeguarding and teacher notes that apply to every lesson. Edit that page to change them for all
+lessons at once (update the version line at the bottom). Lesson plans themselves carry only
+lesson-specific safety points.
+
+The QR image is `docs/assets/common-qr.svg` and encodes
+`https://ashwiniwankhede.github.io/edusports-digital/common.html`. If the site address changes (repository
+rename or custom domain), regenerate it, e.g. with Python:
+`pip install qrcode && python -c "import qrcode, qrcode.image.svg as s; qrcode.make('<new address>/common.html', image_factory=s.SvgPathImage, border=1).save('docs/assets/common-qr.svg')"`
+
 ## Costs & limits
 Cloudflare Workers, D1, Vectorize and Workers AI all have free tiers that comfortably cover a pilot; check current Cloudflare pricing before scale. AI cost is per generation (one lesson ≈ one large-model call + one small safety call). Rate limits above cap your exposure.
 
