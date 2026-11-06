@@ -115,6 +115,38 @@ legend{font-weight:600;font-size:13px;margin-bottom:8px}
 .doc .phase-min{white-space:nowrap;font-weight:600;color:var(--red)}
 .doc .safety{background:var(--warn-soft);border-left:3px solid var(--warn);padding:8px 12px;border-radius:4px}
 .doc .sources{font-size:12px;color:var(--muted)}
+
+/* ───── lesson plan (full plan + abstract) ───── */
+.lp .glance{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 16px;background:#f4f7fb;border-left:4px solid var(--brand);border-radius:6px;padding:8px 12px;margin:10px 0 12px;font-size:12.5px}
+.lp .glance>div>span:first-child{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--brand)}
+.lp .two{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+.lp h4{margin:14px 0 6px}
+.lp ul{font-size:13px}
+.lp .ticklist{list-style:none;padding-left:0}
+.lp .ticklist li::before{content:"☐";font-size:14px;margin-right:6px;color:var(--brand)}
+.lp .box{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.lp .box p{margin:2px 0 6px;font-size:13px;line-height:1.5}
+.lp .box.setup{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}
+.lp .ph{font-weight:800;font-size:13.5px;color:var(--navy)}
+.lp .min{color:var(--red);font-weight:700;font-size:12px}
+.lp .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:6px 0 2px}
+.lp .org{font-size:12px;color:var(--muted)}
+.lp .dg{display:flex;justify-content:center;margin:6px 0}
+.lp .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lp .dgm{max-width:100%;height:auto}
+.lp .abs-note{font-size:12px;color:var(--brand);background:var(--brand-soft);border-radius:8px;padding:6px 10px;margin:4px 0 8px}
+.lp .setup:not(.box){display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}
+.lp .phase{display:grid;grid-template-columns:135px 1fr;gap:14px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+.lp .phase .cols{grid-template-columns:1.2fr 1fr}
+.lp .se{font-size:12px;margin-top:6px}
+.lp .se b{color:var(--navy)}
+.lp .endbar{display:grid;grid-template-columns:110px 1fr;gap:16px;align-items:center;margin-top:18px;padding-top:12px;border-top:2px solid var(--brand)}
+.lp .qr{display:block;text-align:center;font-size:9.5px;line-height:1.25;color:var(--muted);text-decoration:none}
+.lp .qr img{width:92px;height:92px;display:block;margin:0 auto 3px}
+.lp .endbar .notes{font-size:11.5px;line-height:1.5}
+.lp .endbar .notes b{color:var(--navy)}
+.lesson-bar{justify-content:space-between;align-items:center}
+.lesson-bar .seg{margin:0}
 /* ───── unit builder: sectioned form ───── */
 .panel.bare{background:none;box-shadow:none;padding:0}
 .sec{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;margin-bottom:16px}
@@ -201,6 +233,9 @@ legend{font-weight:600;font-size:13px;margin-bottom:8px}
   .u .los{grid-template-columns:1fr}
   .u .w3{grid-column:span 2}
   .u .tl{display:block;overflow-x:auto}
+  .lp .glance{grid-template-columns:1fr 1fr}
+  .lp .two,.lp .cols,.lp .phase .cols,.lp .box.setup,.lp .setup:not(.box){grid-template-columns:1fr}
+  .lp .phase{grid-template-columns:1fr}
   .hero{padding:20px}
   .hero h1{font-size:22px}
   .panel{padding:16px}

@@ -59,3 +59,24 @@ test("/api/lesson end to end: plan applied, prompt includes it", async () => {
   assert.equal(lesson.atl[0], "Social skills: Collaboration");
   assert.ok(prompt.includes("Planned assessment: Formative: peer feedback"));
 });
+
+test("lesson schema carries diagrams and abstract bullets, all objects closed", async () => {
+  const { LESSON_SCHEMA } = await import("../src/prompts.js");
+  const { strictSchema } = await import("../src/llm.js");
+  const phase = LESSON_SCHEMA.properties.phases.items;
+  for (const k of ["activity_points", "diagram"]) assert.ok(phase.required.includes(k), k);
+  for (const k of ["space_setup_points", "space_diagram"]) assert.ok(LESSON_SCHEMA.required.includes(k), k);
+  const objs = []; const walk = (s) => { if (Array.isArray(s)) s.forEach(walk); else if (s && typeof s === "object") { if (s.type === "object") objs.push(s); Object.values(s).forEach(walk); } };
+  walk(strictSchema(LESSON_SCHEMA));
+  assert.ok(objs.length >= 10);
+  for (const o of objs) assert.equal(o.additionalProperties, false);
+});
+
+test("lesson prompt asks for brief text, matching diagrams, and no teacher's kit or common notes", () => {
+  for (const r of [req, { mode: "prompt", prompt: "A Grade 2 lesson on throwing", grade: "Grade 2", minutes: 40 }]) {
+    const { user } = lessonPrompt(r, []);
+    assert.match(user, /Write briefly/);
+    assert.match(user, /top-down diagram for the space set-up and for each phase/);
+    assert.match(user, /teacher's kit .* shared document/);
+  }
+});

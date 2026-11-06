@@ -128,42 +128,78 @@ window.Render = (() => {
     </article>`;
   }
 
-  function lesson(l) {
-    const phases = (l.phases || []).map((p) => `<tr>
-      <td><b>${esc(p.name)}</b><div class="phase-min">${esc(p.minutes)} min</div></td>
-      <td>${esc(p.activity)}${p.organisation ? `<div class="hint">Organisation: ${esc(p.organisation)}</div>` : ""}</td>
-      <td>${list(p.teaching_points)}</td>
-      <td>${p.differentiation ? `<b>Support:</b> ${esc(p.differentiation.support)}<br><b>Extend:</b> ${esc(p.differentiation.extend)}` : "—"}</td>
-    </tr>`).join("");
-    const total = (l.phases || []).reduce((a, p) => a + Number(p.minutes || 0), 0);
+  // ── Lesson plan: full plan (screen + print) or abstract (short view on the site) ──
+  // Common safety, safeguarding and teacher notes live in common.html, reached by the QR code.
+  const COMMON_URL = "common.html";
+  const KIT_NOTE = "clipboard with class list, safe-travelling checklist and notes sheet · first-aid kit and class medical information (e.g. asthma inhalers, allergies) · optional: 1 school device for assessment photos, only if school policy allows";
+  const KIT_ITEM = /clipboard|class list|first[- ]?aid|medical|inhaler|allerg|assessment (photo|device)/i;
+  const sentences = (t, n) => String(t || "").split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, n);
+  const props = (l) => [...(l.equipment || []).filter((x) => !KIT_ITEM.test(x)), "Teacher's kit*"];
+  const dgm = (spec, opts) => (spec && window.Diagram ? Diagram.draw(spec, opts) : "");
 
-    return `<article class="doc">
+  function lesson(l, { view = "full" } = {}) {
+    const ph = l.phases || [];
+    const total = ph.reduce((a, p) => a + Number(p.minutes || 0), 0);
+    const diff = (p) => p.differentiation || {};
+    const head = `
       <h1>${esc(l.title)}</h1>
       <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}Lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
+      <div class="glance"><div><span>Focus</span>${esc(l.focus)}</div><div><span>Key concept</span>${tags(l.key_concepts)}</div>
+        <div><span>ATL</span>${tags(l.atl)}</div><div><span>Learner Profile</span>${tags(l.learner_profile)}</div></div>`;
+    const end = `
+      <div class="endbar">
+        <a class="qr" href="${COMMON_URL}" target="_blank" rel="noopener"><img src="assets/common-qr.svg" alt="QR code: common safety and teacher notes">Scan: common safety &amp; teacher notes</a>
+        <div class="notes"><b>* Teacher's kit:</b> ${KIT_NOTE}.<br>
+          <b>Common safety, safeguarding and teacher notes</b> for every lesson are in the shared document: scan the QR code.</div>
+      </div>`;
 
-      <dl class="kv">
-        <dt>Focus</dt><dd>${esc(l.focus)}</dd>
-        <dt>Key concept(s)</dt><dd>${tags(l.key_concepts)}</dd>
-        <dt>ATL</dt><dd>${tags(l.atl)}</dd>
-        <dt>Learner Profile</dt><dd>${tags(l.learner_profile)}</dd>
-        <dt>Equipment</dt><dd>${(l.equipment || []).map(esc).join(", ") || "—"}</dd>
-        <dt>Space set-up</dt><dd>${esc(l.space_setup) || "—"}</dd>
-      </dl>
+    if (view === "abstract") {
+      return `<article class="doc lp">${head}
+        <div class="abs-note">Abstract: the short version of this lesson. Switch to <b>Full plan</b> for the complete detail.</div>
+        <div class="two">
+          <div><h4>Learning intention</h4>${list((l.learning_intentions || []).slice(0, 1))}<h4>Success criteria</h4>${list(l.success_criteria)}</div>
+          <div><h4>Props checklist</h4><ul class="ticklist">${props(l).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+        </div>
+        <h4>Space set-up</h4>
+        <div class="setup"><div>${list(l.space_setup_points?.length ? l.space_setup_points : sentences(l.space_setup, 3))}</div>${dgm(l.space_diagram, { width: 200, legend: false, label: "Space set-up" })}</div>
+        <h4>Lesson sequence <span class="hint">(${total} min)</span></h4>
+        ${ph.map((p) => `<div class="phase">
+          <div><div class="ph">${esc(p.name)} <span class="min">· ${esc(p.minutes)} min</span></div>${dgm(p.diagram, { width: 125, legend: false, label: p.name })}</div>
+          <div><div class="cols"><div><div class="lbl">Activity</div>${list(p.activity_points?.length ? p.activity_points : sentences(p.activity, 2))}</div>
+            <div><div class="lbl">Coaching cues</div>${list(p.teaching_points)}</div></div>
+            <div class="se"><b>Support:</b> ${esc(diff(p).support) || "—"} &nbsp;·&nbsp; <b>Extend:</b> ${esc(diff(p).extend) || "—"}</div></div>
+        </div>`).join("")}
+        <div class="two">
+          <div><h4>Assessment</h4>${list([l.assessment?.strategy].filter(Boolean))}</div>
+          <div><h4>Safety — this lesson</h4>${list(l.safety_and_safeguarding)}</div>
+        </div>${end}
+      </article>`;
+    }
 
-      <h4>Learning intentions</h4>${list(l.learning_intentions)}
-      <h4>Success criteria</h4>${list(l.success_criteria)}
-
+    return `<article class="doc lp">${head}
+      <div class="two">
+        <div><h4>Learning intentions</h4>${list(l.learning_intentions)}<h4>Success criteria</h4>${list(l.success_criteria)}</div>
+        <div><h4>Props</h4>${list(props(l))}</div>
+      </div>
+      <h4>Space set-up</h4>
+      <div class="box setup"><p>${esc(l.space_setup) || "—"}</p>${dgm(l.space_diagram, { width: 300, label: "Space set-up" })}</div>
       <h4>Lesson sequence <span class="hint">(${total} min)</span></h4>
-      <table><thead><tr><th style="width:16%">Phase</th><th>Activity</th><th style="width:24%">Teaching points</th><th style="width:24%">Differentiation</th></tr></thead>
-      <tbody>${phases}</tbody></table>
-
-      <h4>Inquiry questions</h4>${list(l.inquiry_questions)}
-      <h4>Assessment</h4>
-      <dl class="kv"><dt>Strategy</dt><dd>${esc(l.assessment?.strategy) || "—"}</dd><dt>Evidence</dt><dd>${esc(l.assessment?.evidence) || "—"}</dd></dl>
-      ${l.teacher_notes ? `<h4>Teacher notes</h4><p>${esc(l.teacher_notes)}</p>` : ""}
+      ${ph.map((p) => `<div class="box">
+        <div class="ph">${esc(p.name)} <span class="min">· ${esc(p.minutes)} min</span></div>
+        <div class="lbl">Activity</div><p>${esc(p.activity)}</p>
+        ${p.organisation ? `<div class="org"><b>Organisation:</b> ${esc(p.organisation)}</div>` : ""}
+        ${p.diagram ? `<div class="dg">${dgm(p.diagram, { width: 250, label: p.name })}</div>` : ""}
+        <div class="cols"><div><div class="lbl">Teaching points</div>${list(p.teaching_points)}</div>
+          <div><div class="lbl">Differentiation</div>${list([diff(p).support && `Support: ${diff(p).support}`, diff(p).extend && `Extend: ${diff(p).extend}`].filter(Boolean))}</div></div>
+      </div>`).join("")}
+      <div class="two">
+        <div><h4>Inquiry questions</h4>${list(l.inquiry_questions)}</div>
+        <div><h4>Assessment</h4>${list([l.assessment?.strategy && `Strategy: ${l.assessment.strategy}`, l.assessment?.evidence && `Evidence: ${l.assessment.evidence}`].filter(Boolean))}</div>
+      </div>
+      ${l.teacher_notes ? `<h4>Teacher note</h4><p>${esc(l.teacher_notes)}</p>` : ""}
       ${l.sources && l.sources.length ? `<h4>Sources (knowledge base)</h4><div class="sources">${list(l.sources.map((s) => s.source))}</div>` : ""}
-
-      <h4>Safety &amp; safeguarding</h4><div class="safety">${list(l.safety_and_safeguarding)}</div>
+      <h4>Safety &amp; safeguarding — this lesson</h4><div class="safety">${list(l.safety_and_safeguarding)}</div>
+      ${end}
     </article>`;
   }
 
