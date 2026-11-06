@@ -32,6 +32,8 @@ Static site on GitHub Pages (`/docs`) + Cloudflare Worker API (`/worker`).
   Diagram layout changes need `DIAGRAM_FORMAT` (prompts.js) and `docs/js/diagram.js` (parse) together.
   Keep diagrams as one text field each: nested per-phase JSON made the API's output grammar too large.
 - General safety / teacher notes belong in `docs/common.html`, not in each lesson plan.
+- When `docs/` JS or CSS changes, bump the `?v=` tag on its links in index.html / admin.html /
+  common.html so browsers fetch the new files instead of a cached copy.
 - Never weaken child-safety guardrails. When adding a rule in `guardrails.config.js`,
   add blocked AND allowed cases to `worker/test/guardrails.test.js`.
 - Never commit secrets. Keys live in `wrangler secret` (ANTHROPIC_API_KEY, ADMIN_TOKEN, IP_SALT).

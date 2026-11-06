@@ -135,7 +135,11 @@ window.Render = (() => {
   const KIT_ITEM = /clipboard|class list|first[- ]?aid|medical|inhaler|allerg|assessment (photo|device)/i;
   const sentences = (t, n) => String(t || "").split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, n);
   const props = (l) => [...(l.equipment || []).filter((x) => !KIT_ITEM.test(x)), "Teacher's kit*"];
-  const dgm = (spec, opts) => (spec && window.Diagram ? Diagram.draw(spec, opts) : "");
+  // A diagram, or a small note when the AI sent layout text that can't be drawn (never fail silently).
+  const dgm = (spec, opts) => {
+    if (!spec || !window.Diagram) return "";
+    return Diagram.draw(spec, opts) || (opts.width >= 220 ? `<div class="hint dg-missing">Diagram could not be drawn for this section.</div>` : "");
+  };
 
   function lesson(l, { view = "full" } = {}) {
     const ph = l.phases || [];
