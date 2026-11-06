@@ -23,62 +23,20 @@ export const PEDAGOGY = [
   "Use UK/International English. Be concrete and practical: a teacher should be able to run the lesson from the plan alone.",
 ];
 
-// A space / formation diagram, as data. The site draws it (docs/js/diagram.js); the
-// model never draws pictures. Coordinates are metres from the top-left of the area.
-export const DIAGRAM_SCHEMA = {
-  type: "object",
-  description: "Top-down layout drawn by the site. Keep to ≤ 20 items; use 'group' for students instead of single dots.",
-  properties: {
-    area: {
-      type: "object",
-      properties: {
-        w: { type: "number", description: "width in metres, e.g. 20 for a school hall" },
-        h: { type: "number", description: "depth in metres, e.g. 12" },
-        label: { type: "string", description: "e.g. 'Indoor hall', 'Field', or ''" },
-      },
-      required: ["w", "h", "label"],
-    },
-    zones: {
-      type: "array",
-      description: "dashed areas such as stations or grids; [] if none",
-      items: {
-        type: "object",
-        properties: { x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" }, label: { type: "string", description: "≤ 2 words" } },
-        required: ["x", "y", "w", "h", "label"],
-      },
-    },
-    items: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          type: { type: "string", enum: ["group", "student", "teacher", "cone", "mat", "hoop", "bench", "ball", "goal", "water", "first_aid"] },
-          x: { type: "number", description: "centre x in metres" },
-          y: { type: "number", description: "centre y in metres" },
-          w: { type: "number", description: "width in metres for mat / bench / goal / group; 0 otherwise" },
-          h: { type: "number", description: "depth in metres for mat / goal / group; 0 otherwise" },
-          n: { type: "integer", description: "number of students in a group; 0 otherwise" },
-          shape: { type: "string", enum: ["scatter", "line", "pairs", "circle", "none"], description: "how a group stands; 'none' for other items" },
-          team: { type: "string", enum: ["A", "B", "C", "D", ""], description: "group colour; '' if one team" },
-        },
-        required: ["type", "x", "y", "w", "h", "n", "shape", "team"],
-      },
-    },
-    arrows: {
-      type: "array",
-      description: "movement or rotation; [] if none; ≤ 4",
-      items: {
-        type: "object",
-        properties: {
-          from_x: { type: "number" }, from_y: { type: "number" }, to_x: { type: "number" }, to_y: { type: "number" },
-          kind: { type: "string", enum: ["move", "pass", "rotate"] },
-        },
-        required: ["from_x", "from_y", "to_x", "to_y", "kind"],
-      },
-    },
-  },
-  required: ["area", "zones", "items", "arrows"],
-};
+// A space / formation diagram, as a few lines of plain text the site draws (docs/js/diagram.js).
+// Kept as one string per diagram on purpose: a nested JSON structure repeated for every phase made
+// the structured-output grammar too large for the API. Coordinates are metres from the top-left.
+export const DIAGRAM_FORMAT = [
+  "DIAGRAM FORMAT — one command per line, numbers in metres from the top-left corner, at most 20 lines:",
+  "  area W H LABEL                      e.g. area 20 12 Indoor hall   (always the first line)",
+  "  zone X Y W H LABEL                  dashed station or grid, top-left corner X Y, label ≤ 2 words",
+  "  group X Y W H N SHAPE [TEAM]        N students centred on X Y within W × H; SHAPE scatter|line|pairs|circle; TEAM A|B|C|D (optional)",
+  "  student X Y [TEAM] · teacher X Y · cone X Y · ball X Y · hoop X Y · water X Y · first_aid X Y",
+  "  mat X Y W H · goal X Y W H · bench X Y W   centred on X Y",
+  "  arrow KIND X1 Y1 X2 Y2              KIND move|pass|rotate; at most 4 arrows",
+  "Example: area 20 12 Indoor hall / cone 1.5 1.5 / cone 18.5 1.5 / group 10 6 14 7 24 scatter / teacher 10 11 / arrow move 5 4 8 3",
+].join("\n");
+const DIAGRAM_FIELD = { type: "string", description: "top-down diagram in the DIAGRAM FORMAT from the instructions, one command per line" };
 
 export const LESSON_SCHEMA = {
   type: "object",
@@ -96,7 +54,7 @@ export const LESSON_SCHEMA = {
     equipment: { type: "array", items: { type: "string" }, description: "lesson props with quantities, e.g. '12 gym mats'. Never the teacher's kit (clipboard, class list, first-aid kit, medical information, assessment device): it is listed separately" },
     space_setup: { type: "string", description: "how to set up the space, ≤ 35 words" },
     space_setup_points: { type: "array", items: { type: "string" }, description: "the same set-up as 2–3 bullets, each ≤ 8 words" },
-    space_diagram: DIAGRAM_SCHEMA,
+    space_diagram: DIAGRAM_FIELD,
     safety_and_safeguarding: { type: "array", items: { type: "string" }, description: "1–3 points specific to THIS lesson's activities, each ≤ 10 words. General safety and safeguarding live in a shared document: do not repeat them" },
     phases: {
       type: "array",
@@ -114,7 +72,7 @@ export const LESSON_SCHEMA = {
             properties: { support: { type: "string", description: "≤ 10 words" }, extend: { type: "string", description: "≤ 10 words" } },
             required: ["support", "extend"],
           },
-          diagram: DIAGRAM_SCHEMA,
+          diagram: DIAGRAM_FIELD,
         },
         required: ["name", "minutes", "activity", "organisation", "activity_points", "teaching_points", "differentiation", "diagram"],
       },
@@ -136,7 +94,8 @@ export const LESSON_SCHEMA = {
 // Format rules for every lesson plan (shared by unit and direct-prompt lessons).
 const LESSON_FORMAT = [
   "Write briefly: short sentences and bullets, within the word limits given for each field.",
-  "Draw a top-down diagram for the space set-up and for each phase, matching what the text says: the same area, equipment, groups, teacher position and movement. Place everything inside the area, at least 1 m from its edges, without overlaps. Use 'group' items for students (with n and shape) rather than single dots.",
+  "Draw a top-down diagram for the space set-up and for each phase, matching what the text says: the same area, equipment, groups, teacher position and movement. Place everything inside the area, at least 1 m from its edges, without overlaps. Use 'group' lines for students rather than single students.",
+  DIAGRAM_FORMAT,
   "Use the facilities the teacher gave; otherwise assume a 20 × 12 m indoor hall.",
   "The teacher's kit (clipboard, class list, first-aid kit, medical information, assessment device) and general safety, safeguarding and teacher notes are in a shared document: do not repeat them.",
 ].join("\n");

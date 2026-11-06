@@ -1,5 +1,6 @@
-// Draws a lesson's space / formation diagram as SVG from the layout data the AI returns
-// (worker/src/prompts.js → DIAGRAM_SCHEMA). Coordinates are metres from the area's top-left.
+// Draws a lesson's space / formation diagram as SVG from the layout the AI returns as text
+// (worker/src/prompts.js → DIAGRAM_FORMAT), or from the same layout as an object (demo.js).
+// Coordinates are metres from the area's top-left.
 // The model never draws pictures; this keeps diagrams crisp, on-brand and printable.
 window.Diagram = (() => {
   const COL = { cone: "#f08c00", mat: "#4c7bd9", hoop: "#7a3fb0", bench: "#8a94a0", goal: "#455a6f", ball: "#212b36",
@@ -32,7 +33,34 @@ window.Diagram = (() => {
     return out;
   }
 
+  // Text layout → { area, zones, items, arrows }. One command per line (also accepts " / " or ";"
+  // between commands); lines that can't be read are skipped.
+  function parse(text) {
+    const spec = { area: null, zones: [], items: [], arrows: [] };
+    const SIMPLE = ["teacher", "cone", "ball", "hoop", "water", "first_aid"];
+    for (const raw of String(text).split(/\n|\s\/\s|;/)) {
+      const t = raw.trim().split(/\s+/), cmd = (t[0] || "").toLowerCase().replace(/^aid$/, "first_aid"), v = t.slice(1).map(Number);
+      const ok = (k) => v.slice(0, k).length === k && v.slice(0, k).every(Number.isFinite);
+      const team = (s) => (/^[ABCD]$/i.test(s || "") ? s.toUpperCase() : "");
+      const item = (type, o) => ({ type, w: 0, h: 0, n: 0, shape: "none", team: "", ...o });
+      if (cmd === "area" && ok(2)) spec.area = { w: v[0], h: v[1], label: t.slice(3).join(" ") };
+      else if (cmd === "zone" && ok(4)) spec.zones.push({ x: v[0], y: v[1], w: v[2], h: v[3], label: t.slice(5).join(" ") });
+      else if (cmd === "group" && ok(5)) spec.items.push(item("group", { x: v[0], y: v[1], w: v[2], h: v[3], n: v[4], shape: (t[6] || "scatter").toLowerCase(), team: team(t[7]) }));
+      else if (cmd === "student" && ok(2)) spec.items.push(item("student", { x: v[0], y: v[1], team: team(t[3]) }));
+      else if ((cmd === "mat" || cmd === "goal") && ok(2)) spec.items.push(item(cmd, { x: v[0], y: v[1], w: v[2] || 0, h: v[3] || 0 }));
+      else if (cmd === "bench" && ok(2)) spec.items.push(item("bench", { x: v[0], y: v[1], w: v[2] || 0 }));
+      else if (SIMPLE.includes(cmd) && ok(2)) spec.items.push(item(cmd, { x: v[0], y: v[1] }));
+      else if (cmd === "arrow" && t.length >= 6) {
+        const n = t.slice(2, 6).map(Number);
+        if (n.every(Number.isFinite)) spec.arrows.push({ kind: (t[1] || "move").toLowerCase(), from_x: n[0], from_y: n[1], to_x: n[2], to_y: n[3] });
+      }
+    }
+    if (!spec.area && (spec.items.length || spec.zones.length)) spec.area = { w: 20, h: 12, label: "" };
+    return spec;
+  }
+
   function draw(spec, { width = 320, legend = true, label = "Diagram" } = {}) {
+    if (typeof spec === "string") spec = parse(spec);
     if (!spec || !spec.area) return "";
     const W = clamp(num(spec.area.w, 20), 4, 120), H = clamp(num(spec.area.h, 12), 4, 120);
     const pad = 12, s = (width - pad * 2) / W, h = H * s + pad * 2;
@@ -104,5 +132,5 @@ window.Diagram = (() => {
       + out.join("") + leg + `</svg>`;
   }
 
-  return { draw, groupDots };
+  return { draw, parse, groupDots };
 })();

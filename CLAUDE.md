@@ -29,7 +29,8 @@ Static site on GitHub Pages (`/docs`) + Cloudflare Worker API (`/worker`).
 - Keep `docs/` dependency-free and build-free (GitHub Pages serves it directly).
 - Lesson structure changes need BOTH `worker/src/prompts.js` (LESSON_SCHEMA) and
   `docs/js/render.js` (+ `docs/js/demo.js` template) so screen, print and AI agree.
-  Diagram layout changes need `DIAGRAM_SCHEMA` (prompts.js) and `docs/js/diagram.js` together.
+  Diagram layout changes need `DIAGRAM_FORMAT` (prompts.js) and `docs/js/diagram.js` (parse) together.
+  Keep diagrams as one text field each: nested per-phase JSON made the API's output grammar too large.
 - General safety / teacher notes belong in `docs/common.html`, not in each lesson plan.
 - Never weaken child-safety guardrails. When adding a rule in `guardrails.config.js`,
   add blocked AND allowed cases to `worker/test/guardrails.test.js`.
