@@ -100,6 +100,13 @@ legend{font-weight:600;font-size:13px;margin-bottom:8px}
 
 /* ───── output documents ───── */
 .output{margin-top:28px;border-top:1px dashed rgba(145,158,171,.32);padding-top:20px}
+.feedback-box{background:var(--brand-soft);border-radius:var(--radius-sm);padding:12px 14px;margin:0 0 12px;display:grid;gap:8px}
+.feedback-box[hidden]{display:none}
+.feedback-box label{font-weight:700;font-size:14px}
+.feedback-box textarea{width:100%;padding:10px 12px;border:1px solid rgba(145,158,171,.32);border-radius:var(--radius-sm);font:inherit;resize:vertical;background:#fff;color:var(--ink)}
+.feedback-box textarea:focus{outline:2px solid var(--brand);outline-offset:-2px;border-color:transparent}
+.feedback-box .hint{margin:0}
+.feedback-actions{display:flex;gap:8px;justify-content:flex-end}
 .out-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-bottom:12px}
 .doc h1{font-size:24px;font-weight:800;margin:0 0 4px;color:var(--navy)}
 .doc .meta{color:var(--muted);font-size:13px;margin-bottom:16px}

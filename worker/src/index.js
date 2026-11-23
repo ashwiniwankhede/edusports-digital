@@ -1,6 +1,6 @@
 import { callJSON } from "./llm.js";
 import { checkInput, checkOutput, ruleCheck, redactDeep } from "./guardrails.js";
-import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan, applyLessonRules, GENERATION } from "./prompts.js";
+import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan, applyLessonRules, GENERATION, rigourFromFeedback } from "./prompts.js";
 import { retrieve, ingestChunks, deleteSource, listSources, chunkText } from "./rag.js";
 import { ipHash, logEvent, overLimit, stats, exportEvents } from "./analytics.js";
 
@@ -71,7 +71,7 @@ export default {
       const anonId = request.headers.get("x-anon-id") || "";
       const ip = await ipHash(env, request);
       const body = await readJSON(request, 60000);
-      const req = redactDeep(kind === "lesson" ? validateLesson(body) : { unit: validateUnit(body.unit) });
+      const req = redactDeep(kind === "lesson" ? validateLesson(body) : validateSequence(body));
 
       const limited = await overLimit(env, ip);
       if (limited) return json({ error: "rate_limited", message: limited }, 429);
@@ -93,7 +93,7 @@ export default {
 
       if (kind === "sequence") {
         const blank = blankSections(req.unit);
-        const { system, user } = sequencePrompt(req.unit, chunks, blank);
+        const { system, user } = sequencePrompt(req.unit, chunks, blank, req.revision);
         const out = await callJSON(env, { system, user, schema: sequenceSchema(blank), ...GENERATION });
         const total = req.unit.weeks * req.unit.classesPerWeek;
         const nLos = req.unit.outcomes.length;
@@ -115,8 +115,8 @@ export default {
           ctx.waitUntil(logEvent(env, { type: "blocked", anonId, ipHash: ip, payload: { where: "sequence_output", rule: hit.id } }));
           return json({ error: "blocked", message: hit.message }, 422);
         }
-        ctx.waitUntil(logEvent(env, { type: "sequence_generated", anonId, ipHash: ip, payload: { input: req.unit, model: env.MODEL, rag_sources: chunks.map((c) => c.source), latency_ms: Date.now() - started } }));
-        return json({ sequence, sections });
+        ctx.waitUntil(logEvent(env, { type: "sequence_generated", anonId, ipHash: ip, payload: { input: req.unit, feedback: req.revision?.feedback || "", model: env.MODEL, rag_sources: chunks.map((c) => c.source), latency_ms: Date.now() - started } }));
+        return json({ sequence, sections, rigorous: req.unit.rigorous });
       }
 
       const { system, user } = lessonPrompt(req, chunks);
@@ -192,6 +192,19 @@ function validateSetting(x, minutes) {
     movementMinutes: clamp(x.movementMinutes, 0, minutes, Math.round(minutes * 0.75)),
     rigorous: x.rigorous === true,
   };
+}
+
+// Unit timeline request; a redraft adds the teacher's feedback and the previous timeline.
+function validateSequence(b = {}) {
+  const unit = validateUnit(b.unit);
+  const feedback = str(b.feedback, 600).trim();
+  if (!feedback) return { unit };
+  const rigour = rigourFromFeedback(feedback);
+  if (rigour !== null) unit.rigorous = rigour;
+  const previous = (Array.isArray(b.previous) ? b.previous.slice(0, 140) : []).map((s) => ({
+    week: clamp(s?.week, 1, 20, 1), cls: clamp(s?.cls, 1, 7, 1), name: str(s?.name, 120), focus: str(s?.focus, 200), outcome: str(s?.outcome, 200),
+  }));
+  return { unit, revision: { feedback, previous } };
 }
 
 function validateLesson(b = {}) {

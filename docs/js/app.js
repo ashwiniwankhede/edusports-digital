@@ -48,7 +48,6 @@
 
   // ───────── unit form setup ─────────
   const uf = $("#unitForm");
-  chips($("#skillChips"), "skillThemes", IB.skillThemes);
   options($("#gradeSel"), IB.grades);
   $("#themeSel").innerHTML = `<option value="">Choose a theme…</option>` + IB.themes.map((x) => `<option>${esc(x)}</option>`).join("");
   options($("#promptGrade"), IB.grades);
@@ -77,8 +76,7 @@
     "tdConcepts", "assessWhat", "assessHow", "assessWhen", "ratLearning", "ratWhyPE", "ratBehaviours"];
   const LIST_FIELDS = ["linesOfInquiry", "outcomes", "props", "sloMovement", "sloWellness", "sloInteractions", "sloIdentity", "knowledge", "understandings", "skills"];
   const NUM_FIELDS = ["weeks", "classesPerWeek", "minutesPerClass", "movementMinutes", "boys", "girls"];
-  const CHIP_FIELDS = ["skillThemes", "keyConcepts", "atl", "lp"];
-  const BOOL_FIELDS = ["rigorous"];
+  const CHIP_FIELDS = ["keyConcepts", "atl", "lp"];
 
   function readUnit() {
     const u = { v: 3, sequence: [] };
@@ -86,7 +84,10 @@
     for (const k of LIST_FIELDS) u[k] = lines(uf[k].value);
     for (const k of NUM_FIELDS) u[k] = +uf[k].value || 0;
     for (const k of CHIP_FIELDS) u[k] = checked(uf, k);
-    for (const k of BOOL_FIELDS) u[k] = uf[k].checked;
+    // Not on the form: skill themes (chosen by the AI unless an older plan has them) and rigour (set by feedback).
+    const prev = editingId && Store.getUnit(editingId);
+    u.skillThemes = prev?.skillThemes || [];
+    u.rigorous = !!prev?.rigorous;
     u.movementMinutes = Math.min(u.movementMinutes, u.minutesPerClass);
     return u;
   }
@@ -95,7 +96,6 @@
     for (const k of LIST_FIELDS) uf[k].value = (u[k] || []).join("\n");
     for (const k of NUM_FIELDS) uf[k].value = u[k] ?? "";
     for (const k of CHIP_FIELDS) $$(`input[name="${k}"]`, uf).forEach((i) => (i.checked = (u[k] || []).includes(i.value)));
-    for (const k of BOOL_FIELDS) uf[k].checked = !!u[k];
     updateRatio(); updateSchedule();
   }
   // Unit fields sent to the AI and to analytics: never the teacher's name, the reflection or the timeline.
@@ -127,7 +127,6 @@
   }
   function validUnit() {
     if (!uf.reportValidity()) return false;
-    if (!checked(uf, "skillThemes").length) { toast("Choose at least one skill theme.", true); $("#skillChips").scrollIntoView({ block: "center" }); return false; }
     if (!checked(uf, "keyConcepts").length) { toast("Choose at least one key concept.", true); $("#kcChips").scrollIntoView({ block: "center" }); return false; }
     return true;
   }
@@ -136,7 +135,14 @@
   const unitBar = `<div class="out-bar">
     <button class="btn" data-act="edit-unit">Edit unit details</button>
     <button class="btn" data-act="auto-codes">Auto-assign lesson codes</button>
-    <button class="btn" data-act="print-unit">Print / PDF</button></div>`;
+    <button class="btn" data-act="feedback-unit">Redraft with feedback</button>
+    <button class="btn" data-act="print-unit">Print / PDF</button></div>
+    <div class="feedback-box" id="feedbackBox" hidden>
+      <label for="unitFeedback">What would you like to change? <span class="hint">e.g. make the lessons more challenging, add more cooperative games, spend less time on throwing</span></label>
+      <textarea id="unitFeedback" rows="3" maxlength="600"></textarea>
+      <p class="hint">The AI redrafts the timeline from your feedback. Lesson codes, saved lessons and your reflection stay linked; edits you made to the timeline are replaced.</p>
+      <div class="feedback-actions"><button class="btn ghost" data-act="cancel-feedback">Cancel</button><button class="btn primary" data-act="redraft-unit">Redraft unit plan</button></div>
+    </div>`;
   function showUnit(u, { scroll = true } = {}) {
     currentUnit = u;
     const out = $("#unitOut");
@@ -179,6 +185,32 @@
   uf.addEventListener("reset", () => setTimeout(() => { updateRatio(); updateSchedule(); setEditing(null); }));
   $("#newUnitBtn").addEventListener("click", () => { uf.reset(); $("#unitOut").hidden = true; currentUnit = null; window.scrollTo({ top: 0 }); });
 
+  // Redraft the timeline from the teacher's feedback; codes, lesson links and the reflection are kept.
+  async function redraftUnit(btn) {
+    const feedback = $("#unitFeedback").value.trim();
+    if (!feedback) { toast("Write what you would like to change first.", true); $("#unitFeedback").focus(); return; }
+    if (Api.demo) { toast("Redrafting with feedback needs the AI service, which is not connected in demo mode.", true); return; }
+    const u = structuredClone(currentUnit);
+    busy(btn, true, "Redrafting unit plan…");
+    try {
+      const previous = u.sequence.map(({ week, cls, name, focus, outcome }) => ({ week, cls, name, focus, outcome }));
+      const { sequence, sections, rigorous } = await Api.draftSequence(unitInputs(u), { feedback, previous });
+      if (!Array.isArray(sequence) || !sequence.length) throw new Error("The AI did not return a timeline. Please try again.");
+      u.sequence = sequence;
+      if (typeof rigorous === "boolean") u.rigorous = rigorous;
+      for (const [k, v] of Object.entries(sections || {})) {
+        const blank = Array.isArray(u[k]) ? !u[k].length : !u[k];
+        if (blank && (LIST_FIELDS.includes(k) || TEXT_FIELDS.includes(k))) u[k] = v;
+      }
+      editingId = u.id;
+      saveBuilt(u);
+      toast("Unit plan redrafted and saved");
+    } catch (err) {
+      toast(err.code === "blocked" ? `Request blocked by safety guardrails: ${err.message}` : err.message, true);
+      busy(btn, false);
+    }
+  }
+
   // e.g. "Grade 1" → G1, "KG2" → KG2
   const gradeCode = (g) => (/^grade\s*(\d+)/i.test(g) ? `G${g.match(/\d+/)[0]}` : String(g || "").replace(/\s+/g, "").toUpperCase());
   function autoCodes(u) {
@@ -202,6 +234,12 @@
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.act === "print-unit") printDoc(Render.unit(currentUnit), currentUnit.title, { landscape: true });
+    if (b.dataset.act === "feedback-unit" || b.dataset.act === "cancel-feedback") {
+      const box = $("#feedbackBox");
+      box.hidden = b.dataset.act === "cancel-feedback" || !box.hidden;
+      if (!box.hidden) $("#unitFeedback").focus();
+    }
+    if (b.dataset.act === "redraft-unit") redraftUnit(b);
     if (b.dataset.act === "edit-unit") { fillForm(currentUnit); setEditing(currentUnit); window.scrollTo({ top: 0, behavior: "smooth" }); }
     if (b.dataset.act === "auto-codes") {
       const n = autoCodes(currentUnit);
