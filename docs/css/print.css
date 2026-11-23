@@ -33,7 +33,8 @@ body { background: #fff !important; font-size: 11pt; }
 .doc table { display: table !important; }
 
 /* Lesson plan (A4 portrait) */
-.lp ul, .lp .box p, .lp .se { font-size: 9.5pt; }
+.lp ul, .lp ol, .lp .box p, .lp .se, .lp .ib, .lp .tq { font-size: 9.5pt; }
+.lp .ib { break-inside: avoid; }
 .lp .box, .lp .phase, .lp .endbar, .lp .two, .lp .glance { break-inside: avoid; }
 .lp .phase { grid-template-columns: 130px 1fr; }
 .lp .qr { color: var(--muted); }

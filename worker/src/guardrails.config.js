@@ -34,6 +34,13 @@ export const BLOCK_RULES = [
     pattern: String.raw`((photo\w*|film\w*|video\w*|record\w*|camera)\b.{0,40}\b(changing\s+room|undress\w*|shower\w*|toilet|bathroom|locker\s+room)|(changing\s+room|undress\w*|shower\w*)\b.{0,40}\b(photo\w*|film\w*|video\w*|record\w*|camera)|(massage|rub|touch)\w*\b.{0,25}\b(thigh|chest|bottom|buttock|groin|private\s+parts?))`,
   },
   {
+    // Pedagogy v1.0 (Decision Q19): plans never measure or record children's height, weight or BMI.
+    // Movement language such as "transferring weight" or "bodyweight squats" stays allowed.
+    id: "body_measurement",
+    message: "Plans must not measure or record children's height, weight or BMI.",
+    pattern: String.raw`\b(bmi|body\s+mass\s+index|weigh(ing|ed|s)?\s+(each\s+|the\s+|all\s+)?(child|children|student|students|pupils?|kids?|class|them)\b|(measure|measuring|record|recording|check|checking|note|noting|log|logging)\s+(their\s+|each\s+(child|student|pupil)'?s?\s+|the\s+(children|students|pupils)'?s?\s+|students'?\s+|children'?s\s+)?(height\s+and\s+weight|weight\s+and\s+height|body\s+weight|weight|height))\b`,
+  },
+  {
     id: "abuse_or_punishment",
     message: "Physical punishment, humiliation, or exercise used as punishment is not permitted.",
     pattern: String.raw`\b((hit|slap|smack|beat|spank|kick|shove)\w*\s+(the\s+)?(child|children|student|students|pupils?|kids?)|(punish\w*|humiliat\w*|shame|ridicul\w*)\b.{0,40}\b(child|children|student|students|pupils?|kids?|laps|push[- ]?ups|burpees|running)|(laps|push[- ]?ups|burpees|running)\b.{0,25}\bas\s+(a\s+)?punishment)`,
@@ -48,13 +55,13 @@ export const REDACT_RULES = [
 
 // Policy text shared by the generator system prompt and the AI classifier.
 export const SAFEGUARDING_RULES = [
-  "Content is for children aged roughly 3–12. Keep all language, examples and themes age-appropriate.",
+  "Content is for children in Grades 1–5 (ages about 6–11). Keep all language, examples and themes age-appropriate.",
   "Never produce sexual, sexualised, violent, or humiliating content, or anything that could facilitate grooming or abuse.",
   "Adults must never be alone with a child out of sight of others; any 1:1 support happens in view of the group.",
   "Physical contact by adults is limited to what is necessary for safety (e.g. gymnastics spotting), is explained to the child first, and happens in full view.",
   "Never use exercise, exclusion, or public comparison as punishment. No body-shaming, public weighing, or comments on body size.",
   "No photos or video of children unless for assessment under school policy; never in changing areas.",
   "Grouping must be inclusive and follow the class profile and school policy the teacher gives; respect cultural and religious dress and modesty requirements.",
-  "Include hydration, heat and medical-condition checks appropriate to the setting.",
+  "Include hydration, heat and medical-condition checks suited to the setting and to the climate of the country the teacher gives (general advice if none).",
   "If a teacher's request conflicts with these rules, refuse that part and explain briefly.",
 ];

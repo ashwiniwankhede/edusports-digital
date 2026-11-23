@@ -18,12 +18,15 @@ Static site on GitHub Pages (`/docs`) + Cloudflare Worker API (`/worker`).
     on each lesson plan (`assets/common-qr.svg`) points here.
 - `worker/` — Cloudflare Worker (ES modules, no framework).
   - `src/index.js` — routes: /api/track, /api/lesson, /api/unit-sequence, /admin/*.
-  - `src/prompts.js` — PEDAGOGY, LESSON_SCHEMA, SEQUENCE_SCHEMA, prompt builders.
+  - `src/prompts.js` — PEDAGOGY (EduSports pedagogy v1.0), LESSON_SCHEMA, lesson split, prompt builders,
+    post-generation rules (`applyLessonRules`).
+  - `src/ib-continuums.js` — IB PSPE continuums text (verbatim, licensed), grade→phase map, IB brief.
   - `src/guardrails.config.js` / `src/guardrails.js` — child-safety rules (3 layers).
   - `src/rag.js` — chunking, Workers AI embeddings, Vectorize, D1 chunk store.
   - `src/analytics.js` — D1 events, rate limits, stats, CSV export.
   - `src/llm.js` — Anthropic (structured outputs via `output_config.format`) / OpenAI JSON calls.
   - `schema.sql`, `wrangler.toml`, `test/` (node:test).
+- `knowledge/` — text files to upload to the knowledge base (admin page); not served by the site.
 
 ## Rules
 - Keep `docs/` dependency-free and build-free (GitHub Pages serves it directly).
@@ -32,6 +35,8 @@ Static site on GitHub Pages (`/docs`) + Cloudflare Worker API (`/worker`).
   Diagram layout changes need `DIAGRAM_FORMAT` (prompts.js) and `docs/js/diagram.js` (parse) together.
   Keep diagrams as one text field each: nested per-phase JSON made the API's output grammar too large.
 - General safety / teacher notes belong in `docs/common.html`, not in each lesson plan.
+- The default lesson split lives in both `lessonSplit()` (prompts.js) and `split()` (docs/js/demo.js): keep them in step.
+- Never send IB items on puberty, sexuality, substances or harassment to the model (filtered in ib-continuums.js).
 - When `docs/` JS or CSS changes, bump the `?v=` tag on its links in index.html / admin.html /
   common.html so browsers fetch the new files instead of a cached copy.
 - Never weaken child-safety guardrails. When adding a rule in `guardrails.config.js`,
