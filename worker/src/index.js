@@ -1,6 +1,6 @@
 import { callJSON } from "./llm.js";
 import { checkInput, checkOutput, ruleCheck, redactDeep } from "./guardrails.js";
-import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan, applyLessonRules } from "./prompts.js";
+import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan, applyLessonRules, GENERATION } from "./prompts.js";
 import { retrieve, ingestChunks, deleteSource, listSources, chunkText } from "./rag.js";
 import { ipHash, logEvent, overLimit, stats, exportEvents } from "./analytics.js";
 
@@ -94,7 +94,7 @@ export default {
       if (kind === "sequence") {
         const blank = blankSections(req.unit);
         const { system, user } = sequencePrompt(req.unit, chunks, blank);
-        const out = await callJSON(env, { system, user, schema: sequenceSchema(blank), maxTokens: 16000 });
+        const out = await callJSON(env, { system, user, schema: sequenceSchema(blank), ...GENERATION });
         const total = req.unit.weeks * req.unit.classesPerWeek;
         const nLos = req.unit.outcomes.length;
         const sequence = (out.sequence || []).slice(0, total).map((s) => ({
@@ -120,8 +120,8 @@ export default {
       }
 
       const { system, user } = lessonPrompt(req, chunks);
-      // max_tokens covers thinking plus the plan (thinking is on by default on current models).
-      const raw = await callJSON(env, { system, user, schema: LESSON_SCHEMA, maxTokens: 16000 });
+      // GENERATION (prompts.js) sets max_tokens and effort so thinking plus the plan fit.
+      const raw = await callJSON(env, { system, user, schema: LESSON_SCHEMA, ...GENERATION });
       const checked = checkOutput(raw);
       if (checked.blocked) {
         ctx.waitUntil(logEvent(env, { type: "blocked", anonId, ipHash: ip, payload: { where: "lesson_output", rule: checked.blocked.id, input: req } }));

@@ -27,6 +27,11 @@ export const PEDAGOGY = [
   "Give distances in metres. Use UK/International English. Be concrete and practical: a teacher should be able to run the lesson from the plan alone.",
 ];
 
+// Settings for the lesson and unit-sequence calls. Thinking is always on for the main model and its
+// tokens count against max_tokens, so a full v1.0 plan needs head-room: medium effort keeps the thinking
+// short (Sonnet 5.5 defaults to high), and 32k leaves room for thinking plus a long plan.
+export const GENERATION = { maxTokens: 32000, effort: "medium" };
+
 // Default lesson (pedagogy v1.0 §6, Decision R5): 40 min with 30 min of movement.
 const SPLIT = [
   ["Tuning in", 3, 0], ["Warm-up", 6, 6], ["Activity 1: skill development", 10, 8],
