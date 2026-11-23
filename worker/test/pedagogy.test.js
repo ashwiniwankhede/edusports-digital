@@ -80,9 +80,10 @@ test("after generation: exact minutes, verified IB outcomes, props outside the l
 });
 
 test("/api/lesson (direct prompt) accepts the new inputs and returns rule-checked output", async () => {
-  let prompt = "";
+  let prompt = "", main = null;
   globalThis.fetch = async (_u, init) => {
     const body = JSON.parse(init.body);
+    if (body.model !== "claude-haiku-5-5") main = body;
     const out = body.model === "claude-haiku-5-5" ? { verdict: "SAFE", category: "none", reason: "" }
       : (prompt = body.messages[0].content, { title: "Magic Ball", grade: "Grade 4", duration_min: 0, movement_min: 0, focus: "f",
         outcome_skill: "Students will throw", outcome_physical: "Students will move", outcome_cognitive: "Students will choose", outcome_life_skill: "Students will cooperate",
@@ -101,4 +102,7 @@ test("/api/lesson (direct prompt) accepts the new inputs and returns rule-checke
   assert.equal(lesson.duration_min, 45);
   assert.equal(lesson.movement_min, 35);
   assert.ok(prompt.includes("Props available (use ONLY these): 10 balls") && prompt.includes("Space: Field") && prompt.includes("MORE RIGOROUS") && prompt.includes("(Phase 4;"));
+  // Thinking counts against max_tokens: the plan call needs head-room and a capped effort (was cut off at 16k).
+  assert.ok(main.max_tokens >= 32000, "max_tokens leaves room for thinking plus the plan");
+  assert.equal(main.output_config.effort, "medium");
 });
