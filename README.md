@@ -101,6 +101,21 @@ Also built in for a public no-login site: per-visitor hourly limit and a site-wi
 
 Good first documents: your licensed PSPE scope & sequence, school safeguarding policy, Sportz Village lesson library and equipment guides. *IB framework documents are copyrighted — only upload what your schools are licensed to use.*
 
+**Recommended uploads (pedagogy v1.0):**
+1. *Sportz Village — Creating Champions. In Life.* (the PDF). About 12,900 words of text are indexed. Pages that are only images (the skill-themes matrix on p.16, sample report cards, logbooks, screenshots, photos) are not readable from the PDF and are not indexed — which keeps handwritten names out of the knowledge base.
+2. `knowledge/sv-fundamental-skill-themes.md` from this repository: the p.16 skill-themes matrix as text.
+3. The Grade 2 and Grade 3 Sportz Village reference lessons, when shared (Decision R3).
+
+The IB PSPE continuums are **not** uploaded here: their text is built into the Worker (`worker/src/ib-continuums.js`) and sent with every request for the grade's phase.
+
+## Pedagogy v1.0 (Sportz Village + IB PSPE continuums)
+The AI's standing brief (`PEDAGOGY` in `worker/src/prompts.js`) implements *EduSports PSPE Pedagogy v1.0*:
+Grades 1–5, the nine Sportz Village principles, four "Students will…" outcomes (Skill, Physical, Cognitive,
+Life skill (SEL)), IB PSPE alignment, the default 40-minute lesson (3 / 6 / 10 / 14 / 7 min, 30 min moving,
+scaled to the teacher's inputs), the ES Mantra, the three-point skill scale, props-only planning and climate
+by country. IB phases are internal: Grades 1–2 → Phase 2, 3–4 → Phase 3, 5 → Phase 4; "More rigorous" steps
+up one phase (max 4). Teachers never see the phase.
+
 ## Adding your intelligence (stage 2)
 Everything that shapes output is in `worker/src/prompts.js`:
 - `PEDAGOGY` — replace the generic IB guidance with the Sportz Village methodology.

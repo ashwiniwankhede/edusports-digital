@@ -71,7 +71,10 @@ window.Render = (() => {
       <div class="facts">
         ${fact("Grade", esc(u.grade))}${fact("Unit #", esc(u.unitNo))}${fact("Unit title", esc(u.title), "w2")}
         ${fact("Date", today())}${fact("Duration", `${u.weeks} weeks × ${u.classesPerWeek} classes × ${u.minutesPerClass} min (${total} lessons)`)}
-        ${fact("Movement context", esc(u.context), "w2")}
+        ${u.skillThemes?.length ? fact("Skill themes", joined(u.skillThemes), "w2") : fact("Movement context", esc(u.context), "w2")}
+        ${fact("Movement time", u.movementMinutes ? `${u.movementMinutes} of ${u.minutesPerClass} min per lesson${u.rigorous ? " · more rigorous" : ""}` : "")}
+        ${fact("Space", esc(u.space))}
+        ${u.props?.length ? fact("Props available", joined(u.props, " · "), "w2") : ""}
         ${fact("Class profile", students ? `${students} students (${u.boys || 0} boys, ${u.girls || 0} girls)` : "")}
         ${u.name ? fact("Name", esc(u.name), "w3") : ""}
       </div>
@@ -144,12 +147,22 @@ window.Render = (() => {
   function lesson(l, { view = "full" } = {}) {
     const ph = l.phases || [];
     const total = ph.reduce((a, p) => a + Number(p.minutes || 0), 0);
+    const moving = ph.reduce((a, p) => a + Number(p.movement_minutes || 0), 0);
     const diff = (p) => p.differentiation || {};
+    const mins = (p) => `${esc(p.minutes)} min${p.movement_minutes != null ? ` <span class="mv">· ${esc(p.movement_minutes)} moving</span>` : ""}`;
+    const setup = (p) => p.setup || p.organisation || "";
+    const steps = (p) => (p.steps?.length ? p.steps : null);
+    // Pedagogy v1.0: four observable outcomes, one per domain.
+    const outcomes = [["Skill", l.outcome_skill], ["Physical", l.outcome_physical], ["Cognitive", l.outcome_cognitive], ["Life skill (SEL)", l.outcome_life_skill]].filter(([, v]) => v);
+    const reflections = [["Sports skill", l.reflection_skill], ["Cognitive", l.reflection_cognitive], ["Life skill (SEL)", l.reflection_life_skill]].filter(([, v]) => v?.length);
     const head = `
       <h1>${esc(l.title)}</h1>
-      <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}Lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
+      <div class="meta">${l.lesson_code ? `${esc(l.lesson_code)} · ` : ""}Lesson plan · ${esc(l.grade)} · ${esc(l.duration_min)} min${moving ? ` (${moving} min moving)` : ""}${l.unit_title ? ` · Unit: ${esc(l.unit_title)}` : ""}</div>
       <div class="glance"><div><span>Focus</span>${esc(l.focus)}</div><div><span>Key concept</span>${tags(l.key_concepts)}</div>
         <div><span>ATL</span>${tags(l.atl)}</div><div><span>Learner Profile</span>${tags(l.learner_profile)}</div></div>`;
+    const ib = l.ib_strands?.length || l.ib_outcomes?.length ? `<div class="ib"><b>IB PSPE alignment:</b> ${tags(l.ib_strands)}
+        ${l.ib_outcomes?.length ? `<ul>${l.ib_outcomes.map((o) => `<li>Learners ${esc(o)}</li>`).join("")}</ul>` : ""}</div>` : "";
+    const drive = l.feedback_focus || l.small_goal ? `<div><h4>Drive improvement</h4>${list([l.feedback_focus && `Feedback focus: ${l.feedback_focus}`, l.small_goal && `Small goal: ${l.small_goal}`].filter(Boolean))}</div>` : "";
     const end = `
       <div class="endbar">
         <a class="qr" href="${COMMON_URL}" target="_blank" rel="noopener"><img src="assets/common-qr.svg" alt="QR code: common safety and teacher notes">Scan: common safety &amp; teacher notes</a>
@@ -166,40 +179,47 @@ window.Render = (() => {
         </div>
         <h4>Space set-up</h4>
         <div class="setup"><div>${list(l.space_setup_points?.length ? l.space_setup_points : sentences(l.space_setup, 3))}</div>${dgm(l.space_diagram, { width: 200, legend: false, label: "Space set-up" })}</div>
-        <h4>Lesson sequence <span class="hint">(${total} min)</span></h4>
+        ${l.tuning_in_question ? `<p class="tq"><b>Tuning-in question:</b> ${esc(l.tuning_in_question)}</p>` : ""}
+        <h4>Lesson sequence <span class="hint">(${total} min${moving ? `, ${moving} moving` : ""})</span></h4>
         ${ph.map((p) => `<div class="phase">
-          <div><div class="ph">${esc(p.name)} <span class="min">· ${esc(p.minutes)} min</span></div>${dgm(p.diagram, { width: 125, legend: false, label: p.name })}</div>
+          <div><div class="ph">${esc(p.name)} <span class="min">· ${mins(p)}</span></div>${dgm(p.diagram, { width: 125, legend: false, label: p.name })}</div>
           <div><div class="cols"><div><div class="lbl">Activity</div>${list(p.activity_points?.length ? p.activity_points : sentences(p.activity, 2))}</div>
-            <div><div class="lbl">Coaching cues</div>${list(p.teaching_points)}</div></div>
+            <div><div class="lbl">Coaching points</div>${list(p.teaching_points)}</div></div>
             <div class="se"><b>Support:</b> ${esc(diff(p).support) || "—"} &nbsp;·&nbsp; <b>Extend:</b> ${esc(diff(p).extend) || "—"}</div></div>
         </div>`).join("")}
         <div class="two">
-          <div><h4>Assessment</h4>${list([l.assessment?.strategy].filter(Boolean))}</div>
+          <div><h4>Assessment</h4>${list([l.assessment?.strategy, l.small_goal && `Small goal: ${l.small_goal}`].filter(Boolean))}</div>
           <div><h4>Safety — this lesson</h4>${list(l.safety_and_safeguarding)}</div>
         </div>${end}
       </article>`;
     }
 
     return `<article class="doc lp">${head}
+      ${outcomes.length ? `<h4>Learning outcomes</h4><dl class="kv outcomes">${outcomes.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
+      ${ib}
       <div class="two">
         <div><h4>Learning intentions</h4>${list(l.learning_intentions)}<h4>Success criteria</h4>${list(l.success_criteria)}</div>
         <div><h4>Props</h4>${list(props(l))}</div>
       </div>
       <h4>Space set-up</h4>
       <div class="box setup"><p>${esc(l.space_setup) || "—"}</p>${dgm(l.space_diagram, { width: 300, label: "Space set-up" })}</div>
-      <h4>Lesson sequence <span class="hint">(${total} min)</span></h4>
-      ${ph.map((p) => `<div class="box">
-        <div class="ph">${esc(p.name)} <span class="min">· ${esc(p.minutes)} min</span></div>
-        <div class="lbl">Activity</div><p>${esc(p.activity)}</p>
-        ${p.organisation ? `<div class="org"><b>Organisation:</b> ${esc(p.organisation)}</div>` : ""}
+      <h4>Lesson sequence <span class="hint">(${total} min${moving ? `, ${moving} moving` : ""})</span></h4>
+      ${ph.map((p, i) => `<div class="box">
+        <div class="ph">${esc(p.name)} <span class="min">· ${mins(p)}</span></div>
+        ${i === 0 && l.tuning_in_question ? `<p class="tq"><b>Tuning-in question:</b> ${esc(l.tuning_in_question)}</p>` : ""}
+        ${setup(p) ? `<div class="org"><b>Set-up:</b> ${esc(setup(p))}</div>` : ""}
+        <div class="lbl">Activity</div>${steps(p) ? `<ol class="steps">${steps(p).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : `<p>${esc(p.activity)}</p>`}
         ${p.diagram ? `<div class="dg">${dgm(p.diagram, { width: 250, label: p.name })}</div>` : ""}
-        <div class="cols"><div><div class="lbl">Teaching points</div>${list(p.teaching_points)}</div>
+        <div class="cols"><div><div class="lbl">Coaching points</div>${list(p.teaching_points)}</div>
           <div><div class="lbl">Differentiation</div>${list([diff(p).support && `Support: ${diff(p).support}`, diff(p).extend && `Extend: ${diff(p).extend}`].filter(Boolean))}</div></div>
+        ${p.focus_area ? `<div class="org"><b>Focus area:</b> ${esc(p.focus_area)}</div>` : ""}
       </div>`).join("")}
       <div class="two">
-        <div><h4>Inquiry questions</h4>${list(l.inquiry_questions)}</div>
-        <div><h4>Assessment</h4>${list([l.assessment?.strategy && `Strategy: ${l.assessment.strategy}`, l.assessment?.evidence && `Evidence: ${l.assessment.evidence}`].filter(Boolean))}</div>
+        ${reflections.length ? `<div><h4>Reflection questions</h4><dl class="kv">${reflections.map(([k, v]) => `<dt>${k}</dt><dd>${list(v)}</dd>`).join("")}</dl></div>`
+          : `<div><h4>Inquiry questions</h4>${list(l.inquiry_questions)}</div>`}
+        ${drive || `<div></div>`}
       </div>
+      <h4>Assessment</h4>${list([l.assessment?.strategy && `Strategy: ${l.assessment.strategy}`, l.assessment?.evidence && `Evidence: ${l.assessment.evidence}`].filter(Boolean))}
       ${l.teacher_notes ? `<h4>Teacher note</h4><p>${esc(l.teacher_notes)}</p>` : ""}
       ${l.sources && l.sources.length ? `<h4>Sources (knowledge base)</h4><div class="sources">${list(l.sources.map((s) => s.source))}</div>` : ""}
       <h4>Safety &amp; safeguarding — this lesson</h4><div class="safety">${list(l.safety_and_safeguarding)}</div>

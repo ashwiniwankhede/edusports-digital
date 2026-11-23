@@ -7,7 +7,8 @@ window.Store = (() => {
   // Unit plans saved before the planning-template layout (v2): carry over what fits.
   // Old outcomes become the unit learning outcomes; new sections start blank.
   function upgradeUnit(u) {
-    if (u.v >= 2) return u;
+    if (u.v >= 3) return u;
+    if (u.v === 2) return upgradeV3(u);
     const outcomes = u.outcomes || [];
     u.v = 2;
     u.unitNo ||= ""; u.theme ||= ""; u.additionalConcepts ||= "";
@@ -19,6 +20,17 @@ window.Store = (() => {
       s.los ||= n >= 0 ? [`LO${n + 1}`] : s.outcome === "All unit outcomes" ? outcomes.map((_, i) => `LO${i + 1}`) : [];
       s.code ||= ""; s.name ||= "";
     }
+    return upgradeV3(u);
+  }
+
+  // Pedagogy v1.0 (v3): the old free-text facilities become the props list; movement time
+  // defaults to three quarters of the lesson; skill themes start empty (chosen on next edit).
+  function upgradeV3(u) {
+    u.v = 3;
+    u.props ||= u.facilities ? [u.facilities] : [];
+    u.space ||= ""; u.country ||= ""; u.rigorous = !!u.rigorous;
+    u.movementMinutes ||= Math.round((u.minutesPerClass || 40) * 0.75);
+    u.skillThemes ||= [];
     return u;
   }
 

@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261106">
-  <link rel="stylesheet" href="css/print.css?v=20261106" media="print">
+  <link rel="stylesheet" href="css/styles.css?v=20261123">
+  <link rel="stylesheet" href="css/print.css?v=20261123" media="print">
   <style id="printPage">@page { size: A4 portrait; }</style><!-- set per document by printDoc() -->
 </head>
 <body>
@@ -67,10 +67,8 @@
             <label>Unit #<input name="unitNo" required placeholder="e.g. 3"></label>
             <label>Name <span class="hint">optional · stays in this browser</span><input name="name" placeholder="Teacher name"></label>
           </div>
-          <div class="grid g2">
-            <label>Unit title<input name="title" required placeholder="e.g. Moving bodies, healthy me"></label>
-            <label>Movement context<select name="context" id="contextSel"></select></label>
-          </div>
+          <label>Unit title<input name="title" required placeholder="e.g. Moving bodies, healthy me"></label>
+          <fieldset><legend>Skill themes <span class="hint">choose several: a unit builds multi-skill ability, never one named sport</span></legend><div class="chips" id="skillChips"></div></fieldset>
         </div>
 
         <div class="sec">
@@ -92,17 +90,26 @@
         </div>
 
         <div class="sec">
-          <h2>Schedule &amp; class profile</h2>
+          <h2>Schedule, class &amp; setting</h2>
           <p class="sub">Used to build the timeline and the lesson plans.</p>
-          <div class="grid g3">
+          <div class="grid g4">
             <label># Weeks<input type="number" name="weeks" min="1" max="20" value="6" required></label>
-            <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="2" required></label>
+            <label># Classes / week<input type="number" name="classesPerWeek" min="1" max="7" value="3" required></label>
             <label>Minutes / class<input type="number" name="minutesPerClass" min="15" max="120" step="5" value="40" required></label>
+            <label>Movement time <span class="hint">min / class</span><input type="number" name="movementMinutes" min="0" max="120" step="1" value="30" required></label>
+          </div>
+          <p class="warn-note" id="periodsWarn" hidden>Fewer than 3 PE periods a week: students with more than two PE periods a week score better on fitness (Sportz Village).</p>
+          <div class="grid g3">
             <label># Boys<input type="number" name="boys" min="0" max="60" value="12"></label>
             <label># Girls<input type="number" name="girls" min="0" max="60" value="12"></label>
             <label>Ratio<output id="ratioOut" class="ratio">50 : 50</output></label>
           </div>
-          <label>Facilities &amp; equipment <span class="hint">optional</span><input name="facilities" placeholder="e.g. Indoor hall, 12 hoops, 24 bean bags, cones"></label>
+          <label>Props available <span class="hint">one per line, with quantities · the only props the plans will use</span><textarea name="props" rows="4" required placeholder="e.g. 24 bean bags&#10;12 cones&#10;12 hoops"></textarea></label>
+          <div class="grid g2">
+            <label>Space <span class="hint">where and how big</span><input name="space" placeholder="e.g. Indoor hall 20 × 12 m"></label>
+            <label>Country <span class="hint">optional · for hydration and heat notes</span><input name="country" placeholder="e.g. Singapore"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="rigorous"> More rigorous <span class="hint">raise the challenge of the unit's lessons</span></label>
         </div>
 
         <p class="ai-note">The sections below are optional. Anything left blank is drafted by <b>Build + draft with AI</b>; what you type is never changed.</p>
@@ -185,12 +192,19 @@
         <div id="modePrompt" hidden>
           <label>Describe the lesson you want
             <textarea id="lessonPrompt" rows="4" placeholder="e.g. A 40-minute Grade 3 lesson on dribbling with hands in an invasion game, focused on Collaboration and the Risk-taker attribute"></textarea></label>
-          <div class="grid g3">
+          <div class="grid g4">
             <label>Grade<select id="promptGrade"></select></label>
             <label>Minutes<input type="number" id="promptMinutes" value="40" min="15" max="120" step="5"></label>
+            <label>Movement time<input type="number" id="promptMovement" value="30" min="0" max="120"></label>
             <label>Class size (boys / girls)<input id="promptMix" placeholder="12 / 12"></label>
           </div>
+          <label>Props available <span class="hint">one per line, with quantities · the only props the plan will use</span><textarea id="promptProps" rows="3" placeholder="e.g. 12 balls&#10;8 cones"></textarea></label>
+          <div class="grid g2">
+            <label>Space<input id="promptSpace" placeholder="e.g. Outdoor court 15 × 10 m"></label>
+            <label>Country <span class="hint">optional</span><input id="promptCountry" placeholder="e.g. Singapore"></label>
+          </div>
         </div>
+        <label class="check"><input type="checkbox" id="lessonRigorous"> More rigorous <span class="hint">raise the challenge of this lesson</span></label>
 
         <label>Extra instructions <span class="hint">optional</span><input id="lessonExtra" placeholder="e.g. Hot weather — keep high-intensity bursts short"></label>
         <label class="check"><input type="checkbox" id="useRag" checked> Ground in knowledge base documents (RAG)</label>
@@ -233,14 +247,14 @@
 
   <div id="toast" class="toast no-print" role="status" hidden></div>
 
-  <script src="js/config.js?v=20261106"></script>
-  <script src="js/shell.js?v=20261106"></script>
-  <script src="js/ib-data.js?v=20261106"></script>
-  <script src="js/store.js?v=20261106"></script>
-  <script src="js/api.js?v=20261106"></script>
-  <script src="js/demo.js?v=20261106"></script>
-  <script src="js/diagram.js?v=20261106"></script>
-  <script src="js/render.js?v=20261106"></script>
-  <script src="js/app.js?v=20261106"></script>
+  <script src="js/config.js?v=20261123"></script>
+  <script src="js/shell.js?v=20261123"></script>
+  <script src="js/ib-data.js?v=20261123"></script>
+  <script src="js/store.js?v=20261123"></script>
+  <script src="js/api.js?v=20261123"></script>
+  <script src="js/demo.js?v=20261123"></script>
+  <script src="js/diagram.js?v=20261123"></script>
+  <script src="js/render.js?v=20261123"></script>
+  <script src="js/app.js?v=20261123"></script>
 </body>
 </html>

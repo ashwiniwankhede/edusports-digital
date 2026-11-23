@@ -8,7 +8,8 @@ window.IB = {
     "How the world works", "How we organize ourselves", "Sharing the planet",
   ],
 
-  grades: ["KG1", "KG2", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"],
+  // Pedagogy v1.0 (Decision Q1): Grades 1–5 only.
+  grades: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"],
 
   keyConcepts: ["Form", "Function", "Causation", "Change", "Connection", "Perspective", "Responsibility"],
 
@@ -26,10 +27,11 @@ window.IB = {
     "Self-management skills": ["Organization", "States of mind", "Gross motor skills", "Fine motor skills", "Spatial awareness", "Healthy lifestyle", "Safety"],
   },
 
-  // Movement contexts commonly used in PYP PE units (editable).
-  contexts: [
-    "Body management / gymnastics", "Invasion games", "Net & wall games", "Striking & fielding",
-    "Athletics", "Aquatics", "Dance & movement composition", "Adventure / outdoor challenges",
-    "Health-related fitness", "Cooperative games", "Fundamental movement skills",
+  // Sportz Village Fundamental Skill Themes (Creating Champions. In Life., p.16). Units combine
+  // several themes; plans never centre on one named sport (pedagogy v1.0, Decision Q6, Q9).
+  skillThemes: [
+    "Walking, Running", "Chasing, Fleeing, Dodging", "Jumping, Landing", "Balancing", "Transferring Weight",
+    "Rolling", "Kicking", "Punting", "Throwing", "Catching", "Volleying", "Dribbling",
+    "Striking with Rackets", "Striking with Bats", "Striking with Hockey Stick",
   ],
 };

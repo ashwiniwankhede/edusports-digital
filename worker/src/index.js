@@ -1,6 +1,6 @@
 import { callJSON } from "./llm.js";
 import { checkInput, checkOutput, ruleCheck, redactDeep } from "./guardrails.js";
-import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan } from "./prompts.js";
+import { lessonPrompt, sequencePrompt, retrievalQuery, LESSON_SCHEMA, sequenceSchema, blankSections, DRAFTABLE_SECTIONS, applyPlan, applyLessonRules } from "./prompts.js";
 import { retrieve, ingestChunks, deleteSource, listSources, chunkText } from "./rag.js";
 import { ipHash, logEvent, overLimit, stats, exportEvents } from "./analytics.js";
 
@@ -128,8 +128,9 @@ export default {
         return json({ error: "blocked", message: "The generated plan did not pass the safety check. Please rephrase your request." }, 422);
       }
       const lesson = checked.lesson;
-      lesson.duration_min ||= req.minutes;
-      if (req.mode === "unit") { lesson.unit_title ||= req.unit.title; lesson.grade ||= req.unit.grade; applyPlan(lesson, req.plan); }
+            if (req.mode === "unit") { lesson.unit_title ||= req.unit.title; lesson.grade ||= req.unit.grade; applyPlan(lesson, req.plan); }
+      else lesson.grade ||= req.grade;
+      applyLessonRules(lesson, req);
       lesson.sources = [...new Map(chunks.map((c) => [c.source, { source: c.source, score: Number(c.score.toFixed(3)) }])).values()];
 
       ctx.waitUntil(logEvent(env, { type: "lesson_generated", anonId, ipHash: ip, payload: {
@@ -176,9 +177,21 @@ function validateUnit(u = {}) {
     atl: arr(u.atl, 25, 120), lp: arr(u.lp, 10, 40), outcomes: arr(u.outcomes, 12, 400),
     weeks: clamp(u.weeks, 1, 20, 6), classesPerWeek: clamp(u.classesPerWeek, 1, 7, 2), minutesPerClass: clamp(u.minutesPerClass, 15, 120, 40),
     boys: clamp(u.boys, 0, 60, 0), girls: clamp(u.girls, 0, 60, 0), facilities: str(u.facilities, 400),
+    ...validateSetting(u, clamp(u.minutesPerClass, 15, 120, 40)),
+    skillThemes: arr(u.skillThemes, 15, 60),
   };
   for (const [k, def] of Object.entries(DRAFTABLE_SECTIONS)) out[k] = def.type === "array" ? arr(u[k], 8, 400) : str(u[k], 1000);
   return out;
+}
+
+// Pedagogy v1.0 inputs: props (the only props source), space, movement time, country, rigour.
+function validateSetting(x, minutes) {
+  return {
+    props: arr(x.props, 30, 120).map((t) => t.trim()).filter(Boolean),
+    space: str(x.space, 160), country: str(x.country, 60),
+    movementMinutes: clamp(x.movementMinutes, 0, minutes, Math.round(minutes * 0.75)),
+    rigorous: x.rigorous === true,
+  };
 }
 
 function validateLesson(b = {}) {
@@ -190,10 +203,11 @@ function validateLesson(b = {}) {
       lp: str(p.lp, 80), atl: str(p.atl, 160), assessment: str(p.assessment) };
     return { mode: "unit", unit, week: clamp(b.week, 1, unit.weeks, 1), cls: clamp(b.cls, 1, unit.classesPerWeek, 1),
       focus: str(b.focus, 300), outcome: str(b.outcome, 400), plan, prev: str(b.prev, 400), next: str(b.next, 400),
-      minutes: unit.minutesPerClass, ...common };
+      minutes: unit.minutesPerClass, rigorous: b.rigorous === true || unit.rigorous, ...common };
   }
   const prompt = str(b.prompt, 2000).trim();
   if (prompt.length < 10) throw httpError(400, "Please describe the lesson you want.");
-  return { mode: "prompt", prompt, grade: str(b.grade, 30), minutes: clamp(b.minutes, 15, 120, 40),
-    boys: clamp(b.boys, 0, 60, 0), girls: clamp(b.girls, 0, 60, 0), ...common };
+  const minutes = clamp(b.minutes, 15, 120, 40);
+  return { mode: "prompt", prompt, grade: str(b.grade, 30), minutes,
+    boys: clamp(b.boys, 0, 60, 0), girls: clamp(b.girls, 0, 60, 0), ...validateSetting(b, minutes), ...common };
 }

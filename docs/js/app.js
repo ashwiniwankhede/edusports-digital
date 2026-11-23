@@ -48,7 +48,7 @@
 
   // ───────── unit form setup ─────────
   const uf = $("#unitForm");
-  options($("#contextSel"), IB.contexts);
+  chips($("#skillChips"), "skillThemes", IB.skillThemes);
   options($("#gradeSel"), IB.grades);
   $("#themeSel").innerHTML = `<option value="">Choose a theme…</option>` + IB.themes.map((x) => `<option>${esc(x)}</option>`).join("");
   options($("#promptGrade"), IB.grades);
@@ -64,20 +64,30 @@
   }
   uf.boys.addEventListener("input", updateRatio);
   uf.girls.addEventListener("input", updateRatio);
+  // Pedagogy v1.0 (U11): flag fewer than three PE periods a week; keep movement time within the lesson.
+  function updateSchedule() {
+    $("#periodsWarn").hidden = !(+uf.classesPerWeek.value > 0 && +uf.classesPerWeek.value < 3);
+    uf.movementMinutes.max = uf.minutesPerClass.value || 120;
+  }
+  uf.classesPerWeek.addEventListener("input", updateSchedule);
+  uf.minutesPerClass.addEventListener("input", updateSchedule);
 
   // Form inputs are named after the unit fields they hold.
-  const TEXT_FIELDS = ["grade", "unitNo", "name", "title", "context", "theme", "centralIdea", "additionalConcepts", "facilities",
+  const TEXT_FIELDS = ["grade", "unitNo", "name", "title", "theme", "centralIdea", "additionalConcepts", "space", "country",
     "tdConcepts", "assessWhat", "assessHow", "assessWhen", "ratLearning", "ratWhyPE", "ratBehaviours"];
-  const LIST_FIELDS = ["linesOfInquiry", "outcomes", "sloMovement", "sloWellness", "sloInteractions", "sloIdentity", "knowledge", "understandings", "skills"];
-  const NUM_FIELDS = ["weeks", "classesPerWeek", "minutesPerClass", "boys", "girls"];
-  const CHIP_FIELDS = ["keyConcepts", "atl", "lp"];
+  const LIST_FIELDS = ["linesOfInquiry", "outcomes", "props", "sloMovement", "sloWellness", "sloInteractions", "sloIdentity", "knowledge", "understandings", "skills"];
+  const NUM_FIELDS = ["weeks", "classesPerWeek", "minutesPerClass", "movementMinutes", "boys", "girls"];
+  const CHIP_FIELDS = ["skillThemes", "keyConcepts", "atl", "lp"];
+  const BOOL_FIELDS = ["rigorous"];
 
   function readUnit() {
-    const u = { v: 2, sequence: [] };
+    const u = { v: 3, sequence: [] };
     for (const k of TEXT_FIELDS) u[k] = uf[k].value.trim();
     for (const k of LIST_FIELDS) u[k] = lines(uf[k].value);
     for (const k of NUM_FIELDS) u[k] = +uf[k].value || 0;
     for (const k of CHIP_FIELDS) u[k] = checked(uf, k);
+    for (const k of BOOL_FIELDS) u[k] = uf[k].checked;
+    u.movementMinutes = Math.min(u.movementMinutes, u.minutesPerClass);
     return u;
   }
   function fillForm(u) {
@@ -85,7 +95,8 @@
     for (const k of LIST_FIELDS) uf[k].value = (u[k] || []).join("\n");
     for (const k of NUM_FIELDS) uf[k].value = u[k] ?? "";
     for (const k of CHIP_FIELDS) $$(`input[name="${k}"]`, uf).forEach((i) => (i.checked = (u[k] || []).includes(i.value)));
-    updateRatio();
+    for (const k of BOOL_FIELDS) uf[k].checked = !!u[k];
+    updateRatio(); updateSchedule();
   }
   // Unit fields sent to the AI and to analytics: never the teacher's name, the reflection or the timeline.
   const unitInputs = (u) => {
@@ -116,6 +127,7 @@
   }
   function validUnit() {
     if (!uf.reportValidity()) return false;
+    if (!checked(uf, "skillThemes").length) { toast("Choose at least one skill theme.", true); $("#skillChips").scrollIntoView({ block: "center" }); return false; }
     if (!checked(uf, "keyConcepts").length) { toast("Choose at least one key concept.", true); $("#kcChips").scrollIntoView({ block: "center" }); return false; }
     return true;
   }
@@ -164,7 +176,7 @@
     } finally { busy(btn, false); }
   });
 
-  uf.addEventListener("reset", () => setTimeout(() => { updateRatio(); setEditing(null); }));
+  uf.addEventListener("reset", () => setTimeout(() => { updateRatio(); updateSchedule(); setEditing(null); }));
   $("#newUnitBtn").addEventListener("click", () => { uf.reset(); $("#unitOut").hidden = true; currentUnit = null; window.scrollTo({ top: 0 }); });
 
   // e.g. "Grade 1" → G1, "KG2" → KG2
@@ -287,13 +299,18 @@
         focus: $("#lessonFocus").value.trim(), outcome: s?.outcome || "",
         plan: s ? { code: s.code, name: s.name, los: s.los, keyConcept: s.keyConcept, lp: s.lp, atl: s.atl, assessment: s.assessment } : {},
         prev: brief(u.sequence[i - 1]) || "", next: (i >= 0 && brief(u.sequence[i + 1])) || "",
-        minutes: u.minutesPerClass,
+        minutes: u.minutesPerClass, rigorous: $("#lessonRigorous").checked,
       };
     } else {
       const prompt = $("#lessonPrompt").value.trim();
       if (prompt.length < 10) return toast("Describe the lesson in a sentence or two.", true);
       const [boys, girls] = $("#promptMix").value.split("/").map((x) => parseInt(x, 10) || 0);
-      req = { mode: "prompt", prompt, grade: $("#promptGrade").value, minutes: +$("#promptMinutes").value || 40, boys, girls };
+      const minutes = +$("#promptMinutes").value || 40;
+      const props = lines($("#promptProps").value);
+      if (!props.length) { $("#promptProps").focus(); return toast("List the props available for this lesson.", true); }
+      req = { mode: "prompt", prompt, grade: $("#promptGrade").value, minutes, boys, girls, props,
+        movementMinutes: Math.min(minutes, +$("#promptMovement").value || Math.round(minutes * 0.75)),
+        space: $("#promptSpace").value.trim(), country: $("#promptCountry").value.trim(), rigorous: $("#lessonRigorous").checked };
     }
     req.extra = $("#lessonExtra").value.trim();
     req.useRag = $("#useRag").checked;
@@ -375,7 +392,7 @@
     if (img.complete) window.print(); else { img.onload = img.onerror = () => window.print(); }
   }
 
-  updateRatio();
+  updateRatio(); updateSchedule();
   setMode("unit");
   refreshLessonUnitSelect();
 })();

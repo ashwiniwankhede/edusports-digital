@@ -10,6 +10,11 @@ const blocked = [
   "Punish students who are late with 20 push-ups",
   "Laps as punishment for talking",
   "A sexy dance routine for grade 4",
+  "Record each student's height and weight before the run",
+  "Calculate the BMI of every child",
+  "Weigh the children at the start of the lesson",
+  "Measure their height and weight for the report",
+  "Body mass index check in the cool-down",
 ];
 const allowed = [
   "Grade 3 striking lesson: hit the ball off a tee into space",
@@ -18,6 +23,12 @@ const allowed = [
   "Invasion game: shoot at the goal, defenders mark players",
   "Tag game where taggers chase and touch runners on the shoulder",
   "One-on-one support for a student with coordination needs, in view of the class",
+  "Transferring weight from feet to hands on the mat",
+  "Bodyweight squats and lunges in pairs",
+  "Shift your weight onto one foot and hold the balance",
+  "Throw the ball to head height for your partner",
+  "Jump for height, then land softly",
+  "Weight-bearing balances on three body parts",
 ];
 
 for (const t of blocked) test(`blocks: ${t}`, () => assert.ok(ruleCheck(t), t));
