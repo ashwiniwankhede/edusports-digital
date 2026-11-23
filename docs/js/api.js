@@ -45,9 +45,10 @@ window.Api = (() => {
       if (demo) { await new Promise((r) => setTimeout(r, 600)); return { lesson: Demo.lesson(req) }; }
       return post("/api/lesson", req);
     },
-    async draftSequence(unit) {
+    // revision: { feedback, previous } to redraft an existing timeline from the teacher's comment.
+    async draftSequence(unit, revision = {}) {
       if (demo) { await new Promise((r) => setTimeout(r, 400)); return { sequence: Demo.sequence(unit) }; }
-      return post("/api/unit-sequence", { unit });
+      return post("/api/unit-sequence", { unit, ...revision });
     },
   };
 })();

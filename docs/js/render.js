@@ -9,6 +9,7 @@ window.Render = (() => {
   const joined = (arr, sep = ", ") => esc((arr || []).join(sep));
   const fact = (label, value, cls = "") => `<div class="${cls}"><span>${label}</span>${value || "—"}</div>`;
   const today = () => new Date().toLocaleDateString("en-GB"); // dd/mm/yyyy — the plan always shows the day it is viewed or printed
+  const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
   const MAX_COLS = 8; // timeline columns that fit on a landscape page
 
   // Split the timeline week by week into the fewest pages of ≤ MAX_COLS columns, with the
@@ -70,12 +71,12 @@ window.Render = (() => {
       <h1>${esc(u.grade)} Unit Planner</h1>
       <div class="facts">
         ${fact("Grade", esc(u.grade))}${fact("Unit #", esc(u.unitNo))}${fact("Unit title", esc(u.title), "w2")}
-        ${fact("Date", today())}${fact("Duration", `${u.weeks} weeks × ${u.classesPerWeek} classes × ${u.minutesPerClass} min (${total} lessons)`)}
-        ${u.skillThemes?.length ? fact("Skill themes", joined(u.skillThemes), "w2") : fact("Movement context", esc(u.context), "w2")}
+        ${fact("Date", today())}${fact("Duration", `${plural(u.weeks, "week")} × ${plural(u.classesPerWeek, "class", "classes")} a week × ${u.minutesPerClass} min (${plural(total, "lesson")})`)}
+        ${u.skillThemes?.length ? fact("Skill themes", joined(u.skillThemes), "w2") : u.context ? fact("Movement context", esc(u.context), "w2") : ""}
         ${fact("Movement time", u.movementMinutes ? `${u.movementMinutes} of ${u.minutesPerClass} min per lesson${u.rigorous ? " · more rigorous" : ""}` : "")}
         ${fact("Space", esc(u.space))}
         ${u.props?.length ? fact("Props available", joined(u.props, " · "), "w2") : ""}
-        ${fact("Class profile", students ? `${students} students (${u.boys || 0} boys, ${u.girls || 0} girls)` : "")}
+        ${fact("Class profile", students ? `${plural(students, "student")} (${plural(u.boys || 0, "boy")}, ${plural(u.girls || 0, "girl")})` : "")}
         ${u.name ? fact("Name", esc(u.name), "w3") : ""}
       </div>
 

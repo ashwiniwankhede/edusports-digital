@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { sequenceSchema, blankSections, sequencePrompt } from "../src/prompts.js";
+import { sequenceSchema, blankSections, sequencePrompt, rigourFromFeedback } from "../src/prompts.js";
 
 const unit = {
   title: "Moving bodies, healthy me", unitNo: "3", grade: "Grade 1", context: "Body management / gymnastics",
@@ -66,4 +66,31 @@ test("unsafe timeline output is blocked", async () => {
   const { env } = mockEnv(() => ({ sequence: [{ week: 1, cls: 1, name: "x", focus: "Laps as punishment for talking", los: [], outcome: "x", keyConcept: "x", lp: "x", atl: "x", assessment: "x" }], sections: {} }));
   const res = await call(env);
   assert.equal(res.status, 422);
+});
+
+test("redraft sends the teacher's feedback and previous timeline, and feedback can raise rigour", async () => {
+  const { env, sent } = mockEnv(() => ({ sequence: [{ week: 1, cls: 1, name: "Harder balances", focus: "f", outcome: "o", los: ["LO1"] }], sections: {} }));
+  const previous = [{ week: 1, cls: 1, name: "Big and small balances", focus: "Balance", outcome: "Hold a balance" }];
+  const res = await worker.fetch(new Request("https://w/api/unit-sequence", {
+    method: "POST", headers: { origin: "https://site", "content-type": "application/json" },
+    body: JSON.stringify({ unit, feedback: "Make the lessons more challenging and add cooperative games", previous }),
+  }), env, { waitUntil: () => {} });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).rigorous, true);
+  const main = sent.find((b) => b.model === "claude-sonnet-5-5").messages[0].content;
+  for (const s of ["This is a REDRAFT", "W1 C1: Big and small balances", "add cooperative games", "MORE RIGOROUS", "(Phase 3;"]) assert.ok(main.includes(s), `missing: ${s}`);
+  assert.ok(!main.includes("Ms Example"));
+});
+
+test("plain draft has no redraft lines; unit without skill themes asks the AI to choose several", () => {
+  const { user } = sequencePrompt({ ...unit, context: "", skillThemes: [] }, [], []);
+  assert.ok(!user.includes("REDRAFT"));
+  assert.ok(user.includes("Skill themes: not chosen — choose several"));
+});
+
+test("rigour is read from feedback", () => {
+  assert.equal(rigourFromFeedback("Please make it more rigorous"), true);
+  assert.equal(rigourFromFeedback("These are too hard, make them easier"), false);
+  assert.equal(rigourFromFeedback("Less challenging please"), false);
+  assert.equal(rigourFromFeedback("Add more cooperative games"), null);
 });

@@ -113,8 +113,14 @@ The AI's standing brief (`PEDAGOGY` in `worker/src/prompts.js`) implements *EduS
 Grades 1–5, the nine Sportz Village principles, four "Students will…" outcomes (Skill, Physical, Cognitive,
 Life skill (SEL)), IB PSPE alignment, the default 40-minute lesson (3 / 6 / 10 / 14 / 7 min, 30 min moving,
 scaled to the teacher's inputs), the ES Mantra, the three-point skill scale, props-only planning and climate
-by country. IB phases are internal: Grades 1–2 → Phase 2, 3–4 → Phase 3, 5 → Phase 4; "More rigorous" steps
-up one phase (max 4). Teachers never see the phase.
+by country. IB phases are internal: Grades 1–2 → Phase 2, 3–4 → Phase 3, 5 → Phase 4; more rigour steps
+up one phase (max 4): the lesson form's "More rigorous" tick, or unit feedback such as "make it more
+challenging" (read by `rigourFromFeedback`). Teachers never see the phase. The AI chooses several of the 15
+Sportz Village skill themes for each unit.
+
+**Redraft with feedback.** On a built unit, *Redraft with feedback* (next to Print) sends the teacher's comment
+and the current timeline to `/api/unit-sequence` (`feedback`, `previous`). The comment passes the same input
+guardrails, the AI redrafts the timeline, and lesson codes, saved lessons and the reflection stay linked.
 
 ## Adding your intelligence (stage 2)
 Everything that shapes output is in `worker/src/prompts.js`:
